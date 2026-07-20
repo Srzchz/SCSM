@@ -121,10 +121,10 @@ If more than one person is doing this at once:
 
 | Phase | Status | Branch | Notes |
 |---|---|---|---|
-| Option A — Nav-only fix | **Done** | `claude/unified-shell` | Replaced the single "After-Sales Support" bucket link in `crm/layouts/app.blade.php` with direct "Cases" and "Warranty" links (`route('ascm.dashboard', ['section' => 'cases'\|'warranty'])`). ASCM's own sidebar already server-side-highlights the right tab from `?section=`, so no other change was needed. Visuals are still the separate ASCM shell (Phase 2 below) — this only fixes navigation. |
+| Option A — Nav-only fix | **Done** | `scsm-after_sales` | Replaced the single "After-Sales Support" bucket link in `crm/layouts/app.blade.php` with direct "Cases" and "Warranty" links. Superseded by Phase 2 below (routes changed from `ascm.dashboard?section=` to dedicated `ascm.cases` / `ascm.warranty`). |
+| 2 — ASCM | **Done** | `scsm-after_sales` | Cases and Warranty now `@extends('crm.layouts.app')` as real pages at `/ascm/cases` and `/ascm/warranty`, dropping ASCM's own sidebar/topbar/SPA shell entirely. Also fixed two pre-existing bugs found along the way: `CaseController`/`WarrantyController` redirect helpers pointed at the wrong route (`route('dashboard')`, which is HubController's bucket page, not ASCM), and the off-canvas panel's JS built form-submit URLs missing the `/ascm` prefix. |
 | 0 — Shared shell | Not started | — | — |
 | 1 — CRM | Not started | — | — |
-| 2 — ASCM | Not started | — | Still needed for full visual unification |
 | 3 — SPR | Not started | — | Needs the token/layout comparison first |
 | 4 — SOM | Not started | — | Do last |
 

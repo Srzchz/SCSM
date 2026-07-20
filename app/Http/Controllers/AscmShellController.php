@@ -9,51 +9,29 @@ use Illuminate\Http\Request;
 class AscmShellController extends Controller
 {
     /**
-     * Every section in resources/views/sections/*.blade.php is rendered up
-     * front into resources/views/spa.blade.php and toggled client-side by
-     * app.js (via [hidden]) — there's no per-section route. That means all
-     * data every section needs has to be gathered here in one place and
-     * passed down together, rather than one controller per page.
-     *
-     * Cases and Warranty are wired to real data. Overview, Sales Order,
-     * Customer Relation, Sales Report, Account, and Settings still render
-     * their static placeholder/demo content until the same pattern used
-     * here is repeated for them.
+     * Cases and Warranty each now have their own dedicated route/view and
+     * render inside the shared CRM shell (crm.layouts.app) instead of the
+     * old single-URL SPA shell (spa.blade.php + app.js toggling [hidden]
+     * sections). The Overview/Sales Order/Customer Relation/Sales
+     * Report/Account/Settings placeholder sections that used to live
+     * alongside Cases/Warranty in that shell are gone — those are either
+     * dead demo content or already covered by real CRM/SOM/SPR pages
+     * reachable from the main sidebar.
      */
-    public function index(Request $request)
+    public function cases(Request $request)
     {
-        // Lets write actions (see CaseController/WarrantyController) redirect
-        // back to ?section=cases (or ?section=warranty) so the page reloads
-        // onto the tab you were just working in instead of defaulting back
-        // to Overview.
-        $default = $request->query('section', 'overview');
-
-        $sections = [
-            'overview' => 'sections.overview',
-            'cases' => 'ascm.cases',
-            'warranty' => 'ascm.warranty',
-            'sales-order' => 'sections.sales-order',
-            'customer-relation' => 'sections.customer-relation',
-            'sales-report' => 'sections.sales-report',
-            'account' => 'sections.account',
-            'settings' => 'sections.settings',
-        ];
-
         [$cases, $caseStats, $caseDetails, $caseFilters] = $this->loadCases($request);
+
+        return view('ascm.cases', compact('cases', 'caseStats', 'caseDetails', 'caseFilters'))
+            ->with('active', 'Cases');
+    }
+
+    public function warranty(Request $request)
+    {
         [$warrantyClaims, $warrantyStats, $warrantyDetails, $warrantyFilters] = $this->loadWarrantyClaims($request);
 
-        return view('spa', compact(
-            'sections',
-            'default',
-            'cases',
-            'caseStats',
-            'caseDetails',
-            'caseFilters',
-            'warrantyClaims',
-            'warrantyStats',
-            'warrantyDetails',
-            'warrantyFilters',
-        ));
+        return view('ascm.warranty', compact('warrantyClaims', 'warrantyStats', 'warrantyDetails', 'warrantyFilters'))
+            ->with('active', 'Warranty');
     }
 
     /**
@@ -120,12 +98,9 @@ class AscmShellController extends Controller
             ->latest()
             ->paginate(10, ['*'], 'cases_page')
             // Every page link (and the redirect URLs built in CaseController)
-            // needs to carry ?section=cases plus whatever filters are active,
-            // or the next page load falls back to the Overview tab and loses
-            // the filter. ->fragment() also keeps the #cases hash the SPA
-            // shell uses to track the active tab.
-            ->appends(array_filter(array_merge(['section' => 'cases'], $this->prefixKeys($filters, 'cases_')), fn ($v) => $v !== null && $v !== ''))
-            ->fragment('cases');
+            // needs to carry whatever filters are active, or the next page
+            // load loses them.
+            ->appends(array_filter($this->prefixKeys($filters, 'cases_'), fn ($v) => $v !== null && $v !== ''));
 
         // Pre-shaped per-case timeline/attachments/history so the Blade
         // view can hand it straight to the off-canvas panel as one JSON
@@ -217,8 +192,7 @@ class AscmShellController extends Controller
         ])
             ->latest()
             ->paginate(10, ['*'], 'warranty_page')
-            ->appends(array_filter(array_merge(['section' => 'warranty'], $this->prefixKeys($filters, 'warranty_')), fn ($v) => $v !== null && $v !== ''))
-            ->fragment('warranty');
+            ->appends(array_filter($this->prefixKeys($filters, 'warranty_'), fn ($v) => $v !== null && $v !== ''));
 
         $warrantyDetails = collect($warrantyClaims->items())->mapWithKeys(function (WarrantyClaim $claim) {
             $registration = $claim->warrantyRegistration;

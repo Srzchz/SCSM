@@ -5,7 +5,13 @@ use App\Modules\ASCM\Controllers\CaseController;
 use App\Modules\ASCM\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/ascm', [AscmShellController::class, 'index'])->name('ascm.dashboard');
+Route::get('/ascm/cases', [AscmShellController::class, 'cases'])->name('ascm.cases');
+Route::get('/ascm/warranty', [AscmShellController::class, 'warranty'])->name('ascm.warranty');
+
+// Legacy alias: the old single-URL SPA shell used to live at /ascm. Kept as
+// a redirect (rather than removed outright) in case anything still links to
+// ascm.dashboard directly.
+Route::get('/ascm', fn () => redirect()->route('ascm.cases'))->name('ascm.dashboard');
 
 Route::prefix('ascm')->name('ascm.')->group(function () {
     Route::prefix('cases')->name('cases.')->group(function () {

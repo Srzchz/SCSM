@@ -13,10 +13,9 @@ use Illuminate\Http\Request;
 class WarrantyController extends Controller
 {
     /**
-     * Mirrors CaseController: every action redirects back to the dashboard
-     * route with ?section=warranty (and the page you were on, if any) so
-     * the page lands back on the Warranty tab instead of defaulting to
-     * Overview. There's no auth system wired up yet, so author_id /
+     * Mirrors CaseController: every action redirects back to the Warranty
+     * page (ascm.warranty), carrying forward whatever filters/page were
+     * active. There's no auth system wired up yet, so author_id /
      * decision_by are left null (nullable on every table) rather than
      * faked.
      */
@@ -88,13 +87,6 @@ class WarrantyController extends Controller
             fn ($v) => $v !== null && $v !== ''
         );
 
-        $params['section'] = 'warranty';
-
-        // See the matching comment in CaseController::backToCases — the
-        // SPA shell tracks the active tab via the URL hash, which a plain
-        // redirect() drops, so we add it back manually.
-        $url = route('dashboard', $params) . '#warranty';
-
-        return redirect($url)->with('status', $message);
+        return redirect()->route('ascm.warranty', $params)->with('status', $message);
     }
 }

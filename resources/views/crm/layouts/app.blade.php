@@ -86,8 +86,8 @@
                     ['icon' => '▤', 'label' => 'Orders', 'route' => 'orders.index'],
                     ['icon' => '◔', 'label' => 'Communication Logs', 'route' => 'communication-logs'],
                     ['icon' => '▥', 'label' => 'Sales Order', 'route' => 'sales-order'],
-                    ['icon' => '◎', 'label' => 'Cases', 'route' => 'ascm.dashboard', 'params' => ['section' => 'cases']],
-                    ['icon' => '◈', 'label' => 'Warranty', 'route' => 'ascm.dashboard', 'params' => ['section' => 'warranty']],
+                    ['icon' => '◎', 'label' => 'Cases', 'route' => 'ascm.cases'],
+                    ['icon' => '◈', 'label' => 'Warranty', 'route' => 'ascm.warranty'],
                     ['icon' => '▮', 'label' => 'Sales Report', 'route' => 'sales-report'],
                 ];
                 $active = $active ?? 'Dashboard';

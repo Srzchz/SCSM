@@ -13,11 +13,10 @@ use Illuminate\Http\Request;
 class CaseController extends Controller
 {
     /**
-     * All four actions below redirect back to the dashboard route with
-     * ?section=cases so the page lands back on the Cases tab instead of
-     * defaulting to Overview. There's no auth system wired up yet, so
-     * author_id/changed_by are left null (nullable on every table) rather
-     * than faked.
+     * All four actions below redirect back to the Cases page (ascm.cases)
+     * so acting on a row lands you back where you were. There's no auth
+     * system wired up yet, so author_id/changed_by are left null (nullable
+     * on every table) rather than faked.
      */
     public function updateStatus(Request $request, SupportCase $case): RedirectResponse
     {
@@ -112,15 +111,6 @@ class CaseController extends Controller
             fn ($v) => $v !== null && $v !== ''
         );
 
-        $params['section'] = 'cases';
-
-        // The SPA shell tracks the active tab via the URL hash (e.g.
-        // "#cases"), separately from the ?section= query string the
-        // server uses to pick which section to render on first paint. A
-        // plain redirect() drops any hash, so the client-side nav falls
-        // back to Overview on reload unless we add it back here.
-        $url = route('dashboard', $params) . '#cases';
-
-        return redirect($url)->with('status', $message);
+        return redirect()->route('ascm.cases', $params)->with('status', $message);
     }
 }
