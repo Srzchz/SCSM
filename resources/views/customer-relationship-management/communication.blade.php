@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('crm.layouts.app')
 
 @section('title', $customer['full_name'] . ' - Communication')
 
@@ -9,7 +9,7 @@
 
 @section('content')
 
-    @include('partials.topbar')
+    @include('crm.partials.topbar')
 
     @include('customer-relationship-management.partials.profile-header', ['customer' => $customer, 'activeTab' => $activeTab])
 

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('ascm.layouts.app')
 
 @section('content')
 

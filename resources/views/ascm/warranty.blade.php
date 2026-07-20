@@ -154,7 +154,7 @@
                 </div>
             </div>
 
-            <form id="warranty-filter-form" class="filters" aria-label="Warranty filters" method="GET" action="{{ route('dashboard') }}#warranty">
+            <form id="warranty-filter-form" class="filters" aria-label="Warranty filters" method="GET" action="{{ route('ascm.dashboard') }}#warranty">
                 <input type="hidden" name="section" value="warranty">
 
                 <div class="filter filter-select">
@@ -306,7 +306,7 @@
             @if ($warrantyClaims->total() > 0)
                 <div class="pagination-bar">
                     <span class="pagination-summary">Showing {{ $warrantyClaims->firstItem() }}–{{ $warrantyClaims->lastItem() }} of {{ $warrantyClaims->total() }}</span>
-                    @include('partials.pagination', ['paginator' => $warrantyClaims])
+                    @include('ascm.partials.pagination', ['paginator' => $warrantyClaims])
                 </div>
             @endif
         </section>

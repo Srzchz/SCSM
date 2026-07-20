@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('crm.layouts.app')
 
 @section('title', $pageTitle ?? 'Coming Soon')
 
@@ -6,7 +6,7 @@
 
 @section('content')
 
-    @include('partials.topbar')
+    @include('crm.partials.topbar')
 
     <div class="bg-curema-card rounded-2xl border border-curema-border p-12 flex flex-col items-center justify-center text-center min-h-[420px]">
         <div class="w-16 h-16 rounded-2xl bg-curema-purplesoft flex items-center justify-center text-3xl mb-4">🚧</div>

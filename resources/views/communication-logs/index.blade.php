@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('crm.layouts.app')
 
 @section('title', 'Communication Logs')
 
@@ -12,7 +12,7 @@
 
 @section('content')
 
-    @include('partials.topbar')
+    @include('crm.partials.topbar')
 
     <div class="flex items-start gap-4">
 
@@ -95,9 +95,9 @@
         </div>
 
         <div class="w-[220px] shrink-0 flex flex-col gap-4">
-            @include('partials.customer-insight')
-            @include('partials.upcoming-followups')
-            @include('partials.recent-activities')
+            @include('crm.partials.customer-insight')
+            @include('crm.partials.upcoming-followups')
+            @include('crm.partials.recent-activities')
         </div>
     </div>
 

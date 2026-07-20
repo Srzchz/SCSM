@@ -16,7 +16,7 @@ class OrderController extends Controller
         $orders = $allOrders->where('payment_status', '!=', 'refunded')->map(fn ($o) => $this->row($o))->values();
         $refunds = $allOrders->where('payment_status', 'refunded')->map(fn ($o) => $this->row($o))->values();
 
-        return view('order-history.index', compact('orders', 'refunds'));
+        return view('crm-order-history.index', compact('orders', 'refunds'));
     }
 
     private function row(Order $o): array

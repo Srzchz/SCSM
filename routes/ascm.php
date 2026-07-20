@@ -1,12 +1,13 @@
 <?php
 
+use App\Http\Controllers\AscmShellController;
 use App\Modules\ASCM\Controllers\CaseController;
 use App\Modules\ASCM\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('ascm')->name('ascm.')->group(function () {
-    Route::get('/', fn () => view('ascm.cases'))->name('index');
+Route::get('/ascm', [AscmShellController::class, 'index'])->name('ascm.dashboard');
 
+Route::prefix('ascm')->name('ascm.')->group(function () {
     Route::prefix('cases')->name('cases.')->group(function () {
         Route::patch('{case}/status', [CaseController::class, 'updateStatus'])->name('update-status');
         Route::post('{case}/notes', [CaseController::class, 'storeNote'])->name('notes.store');

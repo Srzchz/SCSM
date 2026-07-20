@@ -2,26 +2,44 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Mocked default user — until the real Users/Auth module is wired up,
-        // SalesOrderController falls back to this user's id for created_by / sales_rep_id.
-        User::firstOrCreate(
-            ['email' => 'admin@fanatec.local'],
-            ['name' => 'Admin', 'password' => bcrypt('password')]
-        );
-
         $this->call([
+            // Users first — StaffUserSeeder creates ASCM/CRM support staff;
+            // SOM/SPR's own users get created inline by their own seeders below.
+            StaffUserSeeder::class,
+
+            // Shared canonical products (SOM's schema won as the survivor —
+            // see change log — ASCM/SPR both point at this same table now).
             ProductSeeder::class,
-            CustomerSeeder::class,
+
+            // Customers. Two separate seeders intentionally both run:
+            // CrmCustomerSeeder creates CRM's demo customers (with insights,
+            // orders, communication logs, follow-ups, activities).
+            // SomCustomerSeeder creates SOM's own demo customers (with
+            // quotations/orders). Different people, different emails —
+            // additive, not a conflict.
+            CrmCustomerSeeder::class,
+            SomCustomerSeeder::class,
+
+            // Sales Order Management's own domain data.
             PricingRuleSeeder::class,
             SalesQuotationSeeder::class,
-            SalesOrderSeeder::class,
+            SomSalesOrderSeeder::class,
+
+            // ASCM's cases/warranty data — pulls from whichever customers
+            // already exist above, and creates its own orders via factory
+            // where needed for warranty registrations.
+            AscmSalesOrderSeeder::class,
+            CaseManagementSeeder::class,
+            WarrantySeeder::class,
+
+            // SPR has no seeder yet (none was in their zip) — its dashboard
+            // will show zeros/empty states until one exists.
         ]);
     }
 }

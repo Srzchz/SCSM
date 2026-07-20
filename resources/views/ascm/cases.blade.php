@@ -145,7 +145,7 @@
                 </div>
             </div>
 
-            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('dashboard') }}#cases">
+            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('ascm.dashboard') }}#cases">
                 <input type="hidden" name="section" value="cases">
 
                 <div class="filter filter-date">
@@ -290,7 +290,7 @@
             @if ($cases->total() > 0)
                 <div class="pagination-bar">
                     <span class="pagination-summary">Showing {{ $cases->firstItem() }}–{{ $cases->lastItem() }} of {{ $cases->total() }}</span>
-                    @include('partials.pagination', ['paginator' => $cases])
+                    @include('ascm.partials.pagination', ['paginator' => $cases])
                 </div>
             @endif
         </section>

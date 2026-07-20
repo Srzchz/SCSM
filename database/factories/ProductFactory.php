@@ -89,10 +89,9 @@ class ProductFactory extends Factory
         $entry = $this->catalog[$category];
 
         return [
-            'sku' => strtoupper($entry['prefix'] . '-' . fake()->unique()->numerify('####')),
             'name' => fake()->randomElement($entry['names']),
-            'price' => fake()->randomFloat(2, $entry['price'][0], $entry['price'][1]),
-            'is_active' => true,
+            'category' => $category,
+            'unit_price' => fake()->randomFloat(2, $entry['price'][0], $entry['price'][1]),
         ];
     }
 }

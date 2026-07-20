@@ -26,7 +26,7 @@ return new class extends Migration
             $table->foreignId('customer_id')->constrained('customers', 'customer_id')->restrictOnDelete();
             $table->foreignId('order_id')->nullable()->constrained('orders', 'order_id')->nullOnDelete();
             $table->foreignId('order_item_id')->nullable()->constrained('order_items')->nullOnDelete();
-            $table->foreignId('product_id')->constrained('products')->restrictOnDelete();
+            $table->foreignId('product_id')->constrained('products', 'product_id')->restrictOnDelete();
 
             $table->string('serial_number')->nullable()->unique();
             $table->string('asset_tag')->nullable();
