@@ -19,13 +19,6 @@
         ['label' => 'At Risk', 'value' => 533, 'pct' => '11.5%', 'color' => '#FF9A91'],
         ['label' => 'Inactive', 'value' => 985, 'pct' => '20.2%', 'color' => '#B0B4EC'],
     ];
-
-    $modules = [
-        ['label' => 'CRM', 'description' => 'Customer profiles, orders, and engagement', 'url' => route('customers.index')],
-        ['label' => 'Sales Orders', 'description' => 'Quotes, orders, invoices, and pricing rules', 'url' => route('sales-order')],
-        ['label' => 'After-Sales', 'description' => 'Cases, warranties, notes, and escalations', 'url' => route('after-sales-support')],
-        ['label' => 'Sales Reporting', 'description' => 'Revenue, targets, forecasts, and alerts', 'url' => route('sales-report')],
-    ];
 @endphp
 
 @section('content')
@@ -48,16 +41,6 @@
                             <p class="text-xs text-curema-green font-medium">↑ {{ $stat['change'] }}</p>
                         </div>
                     </div>
-                @endforeach
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                @foreach ($modules as $module)
-                    <a href="{{ $module['url'] }}" class="bg-curema-card rounded-2xl border border-curema-border p-4 hover:border-curema-purple transition">
-                        <p class="text-xs uppercase tracking-[0.2em] text-curema-sub">Module</p>
-                        <h3 class="mt-2 text-lg font-semibold">{{ $module['label'] }}</h3>
-                        <p class="mt-2 text-sm text-curema-sub">{{ $module['description'] }}</p>
-                    </a>
                 @endforeach
             </div>
 
