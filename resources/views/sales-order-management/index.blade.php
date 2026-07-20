@@ -1,14 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fanatec — Sales Order Management</title>
-<link rel="stylesheet" href="{{ asset('css/fanatec.css') }}">
-</head>
-<body>
-<div id="root"></div>
+@extends('layouts.app')
 
-<script src="{{ asset('js/fanatec.js') }}"></script>
-</body>
-</html>
+@php
+    $tabLabels = [
+        'quotations' => 'Sales Quotations',
+        'orders' => 'Sales Orders',
+        'pricing' => 'Pricing Rules',
+        'invoicing' => 'Invoicing',
+    ];
+    $active = $tabLabels[request('tab')] ?? 'Sales Quotations';
+@endphp
+
+@section('title', 'Sales Order Management')
+
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('css/fanatec.css') }}">
+@endpush
+
+@section('content')
+    <div id="root"></div>
+@endsection
+
+@push('scripts')
+    <script src="{{ asset('js/fanatec.js') }}"></script>
+@endpush

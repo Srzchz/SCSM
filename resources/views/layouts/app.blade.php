@@ -85,7 +85,10 @@
                     ['icon' => '◈', 'label' => 'Purchase Behavior', 'route' => 'purchase-behavior'],
                     ['icon' => '▤', 'label' => 'Orders', 'route' => 'orders.index'],
                     ['icon' => '◔', 'label' => 'Communication Logs', 'route' => 'communication-logs'],
-                    ['icon' => '▥', 'label' => 'Sales Order', 'route' => 'sales-order'],
+                    ['icon' => '📋', 'label' => 'Sales Quotations', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'quotations']],
+                    ['icon' => '🚚', 'label' => 'Sales Orders', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'orders']],
+                    ['icon' => '🏷️', 'label' => 'Pricing Rules', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'pricing']],
+                    ['icon' => '🧾', 'label' => 'Invoicing', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'invoicing']],
                     ['icon' => '◎', 'label' => 'After-Sales Support', 'route' => 'after-sales-support'],
                     ['icon' => '▮', 'label' => 'Sales Report', 'route' => 'sales-report'],
                 ];
@@ -93,7 +96,7 @@
             @endphp
 
             @foreach ($nav as $item)
-                <a href="{{ route($item['route']) }}"
+                <a href="{{ route($item['route'], $item['params'] ?? []) }}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition
                           {{ $active === $item['label']
                                 ? 'bg-curema-purplesoft text-curema-purple font-semibold'
