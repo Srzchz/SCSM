@@ -86,14 +86,15 @@
                     ['icon' => '▤', 'label' => 'Orders', 'route' => 'orders.index'],
                     ['icon' => '◔', 'label' => 'Communication Logs', 'route' => 'communication-logs'],
                     ['icon' => '▥', 'label' => 'Sales Order', 'route' => 'sales-order'],
-                    ['icon' => '◎', 'label' => 'After-Sales Support', 'route' => 'after-sales-support'],
+                    ['icon' => '◎', 'label' => 'Cases', 'route' => 'ascm.dashboard', 'params' => ['section' => 'cases']],
+                    ['icon' => '◈', 'label' => 'Warranty', 'route' => 'ascm.dashboard', 'params' => ['section' => 'warranty']],
                     ['icon' => '▮', 'label' => 'Sales Report', 'route' => 'sales-report'],
                 ];
                 $active = $active ?? 'Dashboard';
             @endphp
 
             @foreach ($nav as $item)
-                <a href="{{ route($item['route']) }}"
+                <a href="{{ route($item['route'], $item['params'] ?? []) }}"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition
                           {{ $active === $item['label']
                                 ? 'bg-curema-purplesoft text-curema-purple font-semibold'
