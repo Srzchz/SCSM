@@ -5,7 +5,7 @@ use App\Modules\ASCM\Controllers\WarrantyController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('ascm')->name('ascm.')->group(function () {
-    Route::get('/', fn () => view('ascm.cases'))->name('index');
+    Route::get('/', [CaseController::class, 'index'])->name('index');
 
     Route::prefix('cases')->name('cases.')->group(function () {
         Route::patch('{case}/status', [CaseController::class, 'updateStatus'])->name('update-status');

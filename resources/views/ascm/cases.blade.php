@@ -145,8 +145,7 @@
                 </div>
             </div>
 
-            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('dashboard') }}#cases">
-                <input type="hidden" name="section" value="cases">
+            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('ascm.index') }}">
 
                 <div class="filter filter-date">
                     <label class="filter-label" for="cases-date-from">From</label>
@@ -183,7 +182,7 @@
                 <div class="filter filter-buttons">
                     <button type="submit" class="btn btn-ghost btn-compact">Apply</button>
                     @if ($hasActiveCaseFilters)
-                        <a href="{{ route('dashboard', ['section' => 'cases']) }}#cases" class="btn btn-ghost btn-compact">Clear</a>
+                        <a href="{{ route('ascm.index') }}" class="btn btn-ghost btn-compact">Clear</a>
                     @endif
                 </div>
             </form>

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Som;
+namespace App\Modules\som;
 
 use Illuminate\Support\ServiceProvider;
 

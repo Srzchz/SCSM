@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Modules\Ascm;
+namespace App\Modules\CRM;
 
 use Illuminate\Support\ServiceProvider;
 
