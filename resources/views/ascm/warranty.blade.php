@@ -154,7 +154,7 @@
                 </div>
             </div>
 
-            <form id="warranty-filter-form" class="filters" aria-label="Warranty filters" method="GET" action="{{ route('dashboard') }}#warranty">
+            <form id="warranty-filter-form" class="filters" aria-label="Warranty filters" method="GET" action="{{ route('ascm.dashboard') }}#warranty">
                 <input type="hidden" name="section" value="warranty">
 
                 <div class="filter filter-select">
@@ -221,7 +221,7 @@
                                 $productName = optional($registration)->product->name ?? null;
                                 $serial = $registration->serial_number ?? $registration->asset_tag ?? null;
                                 $coverageKey = $registration ? str_replace(' ', '_', strtolower($registration->coverage_status)) : null;
-                                $claimMeta = ($claim->customer->name ?? '—') . ($productName ? ' • ' . $productName : '') . ($serial ? ' • ' . $serial : '');
+                                $claimMeta = ($claim->customer->full_name ?? '—') . ($productName ? ' • ' . $productName : '') . ($serial ? ' • ' . $serial : '');
                                 // See the matching note in cases.blade.php: the @json Blade
                                 // directive splits on every top-level comma, which mangles a
                                 // multi-key array literal default like the one below. Encode by
@@ -235,7 +235,7 @@
                             <tr>
                                 <td><span class="mono">{{ $claim->claim_number }}</span></td>
                                 <td>
-                                    <div class="cell-primary">{{ $claim->customer->name ?? '—' }}</div>
+                                    <div class="cell-primary">{{ $claim->customer->full_name ?? '—' }}</div>
                                     @if ($productName || $serial)
                                         <div class="cell-sub">{{ $productName ?? '—' }}@if($serial) • {{ $serial }} @endif</div>
                                     @endif
@@ -306,7 +306,7 @@
             @if ($warrantyClaims->total() > 0)
                 <div class="pagination-bar">
                     <span class="pagination-summary">Showing {{ $warrantyClaims->firstItem() }}–{{ $warrantyClaims->lastItem() }} of {{ $warrantyClaims->total() }}</span>
-                    @include('partials.pagination', ['paginator' => $warrantyClaims])
+                    @include('ascm.partials.pagination', ['paginator' => $warrantyClaims])
                 </div>
             @endif
         </section>
@@ -548,9 +548,9 @@
             panel.querySelector('.detail-case-meta').textContent = meta;
 
             if (decisionSelect) decisionSelect.value = status;
-            if (decisionForm) decisionForm.action = '/warranty/' + pk + '/decision' + (currentQuery ? ('?' + currentQuery) : '');
-            if (noteForm) noteForm.action = '/warranty/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
-            if (repairForm) repairForm.action = '/warranty/' + pk + '/repair' + (currentQuery ? ('?' + currentQuery) : '');
+            if (decisionForm) decisionForm.action = '/ascm/warranty/' + pk + '/decision' + (currentQuery ? ('?' + currentQuery) : '');
+            if (noteForm) noteForm.action = '/ascm/warranty/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
+            if (repairForm) repairForm.action = '/ascm/warranty/' + pk + '/repair' + (currentQuery ? ('?' + currentQuery) : '');
 
             setText('panel-warranty-period', coverage.period);
             setText('panel-warranty-eligibility', coverage.eligibility);

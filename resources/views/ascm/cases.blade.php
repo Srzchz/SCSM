@@ -145,7 +145,8 @@
                 </div>
             </div>
 
-            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('ascm.index') }}">
+            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('ascm.dashboard') }}#cases">
+                <input type="hidden" name="section" value="cases">
 
                 <div class="filter filter-date">
                     <label class="filter-label" for="cases-date-from">From</label>
@@ -182,7 +183,7 @@
                 <div class="filter filter-buttons">
                     <button type="submit" class="btn btn-ghost btn-compact">Apply</button>
                     @if ($hasActiveCaseFilters)
-                        <a href="{{ route('ascm.index') }}" class="btn btn-ghost btn-compact">Clear</a>
+                        <a href="{{ route('dashboard', ['section' => 'cases']) }}#cases" class="btn btn-ghost btn-compact">Clear</a>
                     @endif
                 </div>
             </form>
@@ -204,7 +205,7 @@
                         @forelse ($cases as $case)
                             @php
                                 $productName = optional($case->product ?? optional($case->orderItem)->product)->name;
-                                $caseMeta = ($case->customer->name ?? '—') . ' • ' . $case->category . ' • ' . ucfirst($case->priority) . ' priority';
+                                $caseMeta = ($case->customer->full_name ?? '—') . ' • ' . $case->category . ' • ' . ucfirst($case->priority) . ' priority';
                                 // NOTE: don't use the @json Blade directive here — it splits its
                                 // expression on every top-level comma (to separate the optional
                                 // json_encode $options/$depth args), which mangles any array
@@ -220,7 +221,7 @@
                             <tr>
                                 <td><span class="mono">{{ $case->case_number }}</span></td>
                                 <td>
-                                    <div class="cell-primary">{{ $case->customer->name ?? '—' }}</div>
+                                    <div class="cell-primary">{{ $case->customer->full_name ?? '—' }}</div>
                                     @if ($case->order || $productName)
                                         <div class="cell-sub">{{ $case->order->order_number ?? '—' }}@if($productName) • {{ $productName }} @endif</div>
                                     @endif
@@ -289,7 +290,7 @@
             @if ($cases->total() > 0)
                 <div class="pagination-bar">
                     <span class="pagination-summary">Showing {{ $cases->firstItem() }}–{{ $cases->lastItem() }} of {{ $cases->total() }}</span>
-                    @include('partials.pagination', ['paginator' => $cases])
+                    @include('ascm.partials.pagination', ['paginator' => $cases])
                 </div>
             @endif
         </section>
@@ -498,8 +499,8 @@
             panel.querySelector('.detail-case-meta').textContent = meta;
 
             if (statusSelect) statusSelect.value = status;
-            if (statusForm) statusForm.action = '/cases/' + pk + '/status' + (currentQuery ? ('?' + currentQuery) : '');
-            if (noteForm) noteForm.action = '/cases/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
+            if (statusForm) statusForm.action = '/ascm/cases/' + pk + '/status' + (currentQuery ? ('?' + currentQuery) : '');
+            if (noteForm) noteForm.action = '/ascm/cases/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
 
             renderTimeline('panel-case-timeline', notes, 'No notes yet.');
             renderTimeline('panel-case-attachments', payload.attachments || [], 'No attachments.');
