@@ -18,7 +18,7 @@ return new class extends Migration
             ->constrained('sales_order_management_sales_quotations', 'quotation_id')
             ->cascadeOnDelete()
             ->name('som_quotation_items_quotation_id_foreign');
-            $table->foreignId('product_id')->constrained('products', 'product_id'); // ref from Inventory module
+            $table->foreignId('product_id')->constrained('products', 'id'); // ref from Inventory module
             $table->integer('quantity');
             $table->decimal('unit_price', 10, 2);
             $table->decimal('discount_percent', 5, 2)->nullable();

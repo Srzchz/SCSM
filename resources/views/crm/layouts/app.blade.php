@@ -85,9 +85,18 @@
                     ['icon' => '◈', 'label' => 'Purchase Behavior', 'route' => 'purchase-behavior'],
                     ['icon' => '▤', 'label' => 'Orders', 'route' => 'orders.index'],
                     ['icon' => '◔', 'label' => 'Communication Logs', 'route' => 'communication-logs'],
+<<<<<<< HEAD:resources/views/crm/layouts/app.blade.php
                     ['icon' => '▥', 'label' => 'Sales Order', 'route' => 'sales-order'],
                     ['icon' => '◎', 'label' => 'Cases', 'route' => 'ascm.cases'],
                     ['icon' => '◈', 'label' => 'Warranty', 'route' => 'ascm.warranty'],
+=======
+                    ['icon' => '📋', 'label' => 'Sales Quotations', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'quotations']],
+                    ['icon' => '🚚', 'label' => 'Sales Orders', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'orders']],
+                    ['icon' => '🏷️', 'label' => 'Pricing Rules', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'pricing']],
+                    ['icon' => '🧾', 'label' => 'Invoicing', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'invoicing']],
+                    ['icon' => '◎', 'label' => 'Cases', 'route' => 'ascm.cases'],
+                    ['icon' => '◈', 'label' => 'Warranty', 'route' => 'ascm.warranty'],
+>>>>>>> origin/CRM:resources/views/layouts/app.blade.php
                     ['icon' => '▮', 'label' => 'Sales Report', 'route' => 'sales-report'],
                 ];
                 $active = $active ?? 'Dashboard';
