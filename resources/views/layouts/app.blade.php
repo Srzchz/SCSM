@@ -6,7 +6,35 @@
     <title>@yield('title', 'SCSM') - Dashboard</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        curema: {
+                            bg: '#E9EBFC',
+                            card: '#FFFFFF',
+                            ink: '#120F34',
+                            sub: '#5B5876',
+                            border: '#CFD2F9',
+                            purple: '#120F34',
+                            purplesoft: '#B0B4EC',
+                            green: '#00630F',
+                            greensoft: '#9CFF9F',
+                            blue: '#004169',
+                            bluesoft: '#7ED8FF',
+                            coral: '#FF9A91',
+                            vip: '#AD9EFF',
+                            orangesoft: '#FF9A91',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
