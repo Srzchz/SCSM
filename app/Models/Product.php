@@ -12,7 +12,15 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $primaryKey = 'product_id';
+    // NOTE: the products table uses the default `id` auto-increment column
+    // (see the create_products_table migration's `$table->id()`), not
+    // `product_id`. Other modules' migrations that reference this table by
+    // `product_id` have been corrected to point at `id` instead.
+    protected $fillable = ['sku', 'name', 'category', 'price', 'unit_price', 'is_active'];
 
-    protected $fillable = ['name', 'category', 'unit_price'];
+    protected $casts = [
+        'price' => 'decimal:2',
+        'unit_price' => 'decimal:2',
+        'is_active' => 'boolean',
+    ];
 }

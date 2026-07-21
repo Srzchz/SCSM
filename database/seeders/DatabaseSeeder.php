@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             // Shared canonical products (SOM's schema won as the survivor —
             // see change log — ASCM/SPR both point at this same table now).
             ProductSeeder::class,
+<<<<<<< HEAD
 
             // Customers. Two separate seeders intentionally both run:
             // CrmCustomerSeeder creates CRM's demo customers (with insights,
@@ -27,6 +28,10 @@ class DatabaseSeeder extends Seeder
             SomCustomerSeeder::class,
 
             // Sales Order Management's own domain data.
+=======
+            CustomerSeeder::class,
+            OrderSeeder::class,
+>>>>>>> origin/CRM
             PricingRuleSeeder::class,
             SalesQuotationSeeder::class,
             SomSalesOrderSeeder::class,

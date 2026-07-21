@@ -25,56 +25,67 @@ class SalesQuotationSeeder extends Seeder
             'email' => 'admin@fanatec.local',
         ])->id;
 
+        $customers = Customer::orderBy('customer_id')->take(4)->get();
+        $products = Product::inRandomOrder()->get();
+
+        if ($customers->count() < 4 || $products->count() < 3) {
+            // Not enough seeded customers/products yet — nothing to build sample quotations from.
+            return;
+        }
+
+        // Structure (status/timing/discount pattern) is fixed for a
+        // realistic demo funnel; the actual customer and products are
+        // picked dynamically so this seeder survives catalog changes.
         $plans = [
             [
-                'customer' => 'Bryan Suico',
+                'customer' => $customers[0],
                 'status'   => 'Draft',
                 'daysAgo'  => 1,
                 'items'    => [
-                    ['product' => 'CSL DD Base 8Nm', 'qty' => 1, 'discount' => 0],
-                    ['product' => 'CSL Elite Pedals V2', 'qty' => 1, 'discount' => 5],
+                    ['product' => $products[0], 'qty' => 1, 'discount' => 0],
+                    ['product' => $products[1], 'qty' => 1, 'discount' => 5],
                 ],
             ],
             [
-                'customer' => 'Arren Toong',
+                'customer' => $customers[1],
                 'status'   => 'Sent',
                 'daysAgo'  => 4,
                 'items'    => [
-                    ['product' => 'Gran Turismo DD Pro 8Nm', 'qty' => 2, 'discount' => 10],
-                    ['product' => 'QR2 Quick Release', 'qty' => 2, 'discount' => 0],
+                    ['product' => $products[2], 'qty' => 2, 'discount' => 10],
+                    ['product' => $products[3 % $products->count()], 'qty' => 2, 'discount' => 0],
                 ],
             ],
             [
-                'customer' => 'Charles Nodalo',
+                'customer' => $customers[2],
                 'status'   => 'Accepted',
                 'daysAgo'  => 9,
                 'items'    => [
-                    ['product' => 'Podium DD2 Base 20Nm', 'qty' => 1, 'discount' => 0],
-                    ['product' => 'Podium Steering Wheel BMW M4 GT3', 'qty' => 1, 'discount' => 0],
-                    ['product' => 'ClubSport Pedals V3', 'qty' => 1, 'discount' => 8],
+                    ['product' => $products[4 % $products->count()], 'qty' => 1, 'discount' => 0],
+                    ['product' => $products[5 % $products->count()], 'qty' => 1, 'discount' => 0],
+                    ['product' => $products[6 % $products->count()], 'qty' => 1, 'discount' => 8],
                 ],
             ],
             [
-                'customer' => 'Harvey Baysac',
+                'customer' => $customers[3],
                 'status'   => 'Rejected',
                 'daysAgo'  => 15,
                 'items'    => [
-                    ['product' => 'CSL Elite Racing Cockpit', 'qty' => 3, 'discount' => 15],
+                    ['product' => $products[7 % $products->count()], 'qty' => 3, 'discount' => 15],
                 ],
             ],
         ];
 
         foreach ($plans as $plan) {
-            [$firstName, $lastName] = explode(' ', $plan['customer'], 2);
-            $customer = Customer::where('first_name', $firstName)->where('last_name', $lastName)->firstOrFail();
+            $customer = $plan['customer'];
 
             $subtotal = 0;
             $discountTotal = 0;
             $lines = [];
 
             foreach ($plan['items'] as $item) {
-                $product = Product::where('name', $item['product'])->firstOrFail();
-                $lineGross = $product->unit_price * $item['qty'];
+                $product = $item['product'];
+                $unitPrice = (float) ($product->unit_price ?? $product->price);
+                $lineGross = $unitPrice * $item['qty'];
                 $lineDisc  = round($lineGross * ($item['discount'] / 100), 2);
                 $lineTotal = round($lineGross - $lineDisc, 2);
 
@@ -82,9 +93,9 @@ class SalesQuotationSeeder extends Seeder
                 $discountTotal += $lineDisc;
 
                 $lines[] = [
-                    'product_id'       => $product->product_id,
+                    'product_id'       => $product->id,
                     'quantity'         => $item['qty'],
-                    'unit_price'       => $product->unit_price,
+                    'unit_price'       => $unitPrice,
                     'discount_percent' => $item['discount'],
                     'line_total'       => $lineTotal,
                 ];
