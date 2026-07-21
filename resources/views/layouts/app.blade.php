@@ -77,7 +77,7 @@
             <span class="text-xl font-extrabold tracking-tight">SCSM</span>
         </a>
 
-        <nav class="flex-1 mt-4 space-y-1">
+        <nav class="flex-1 mt-4 space-y-0">
             @php
                 $nav = [
                     ['icon' => '▦', 'label' => 'Dashboard', 'route' => 'dashboard'],
@@ -91,14 +91,17 @@
                     ['icon' => '🧾', 'label' => 'Invoicing', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'invoicing']],
                     ['icon' => '◎', 'label' => 'Cases', 'route' => 'ascm.cases'],
                     ['icon' => '◈', 'label' => 'Warranty', 'route' => 'ascm.warranty'],
-                    ['icon' => '▮', 'label' => 'Sales Report', 'route' => 'sales-report'],
+                    ['icon' => '▮', 'label' => 'Generate Report', 'route' => 'sales-performance-reporting.generate-report'],
+                    ['icon' => '▮', 'label' => 'Revenue Forecast', 'route' => 'sales-performance-reporting.revenue-forecast'],
+                    ['icon' => '▮', 'label' => 'Alerts', 'route' => 'sales-performance-reporting.alerts'],
+                    ['icon' => '▮', 'label' => 'Target', 'route' => 'sales-performance-reporting.targets'],
                 ];
                 $active = $active ?? 'Dashboard';
             @endphp
 
             @foreach ($nav as $item)
                 <a href="{{ route($item['route'], $item['params'] ?? []) }}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition
+                   class="flex items-center gap-3 px-2 py-2.5 rounded-xl text-sm font-medium transition
                           {{ $active === $item['label']
                                 ? 'bg-curema-purplesoft text-curema-purple font-semibold'
                                 : 'text-curema-ink/70 hover:bg-curema-bg' }}">

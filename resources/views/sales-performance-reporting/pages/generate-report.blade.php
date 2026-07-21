@@ -2,12 +2,14 @@
     resources/views/pages/generate-report.blade.php
     Route: GET /generate-report -> App\Http\Controllers\GenerateReportController@index
 --}}
-@extends('sales-performance-reporting.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Generate Report')
 
+
 @section('content')
 
+    
     <section class="card panel" style="margin-bottom:22px;">
         <h2 style="margin-bottom:4px;">Generate Report</h2>
         <p class="panel-sub" style="margin-top:0;">Filter by dimension, data range, and export format</p>
@@ -140,6 +142,7 @@
         Filters cleared. Choose your filters above and click <strong style="color:var(--ink); margin:0 4px;">Generate Report</strong> to see results.
     </p>
 
+    
 @endsection
 
 @section('extra-scripts')

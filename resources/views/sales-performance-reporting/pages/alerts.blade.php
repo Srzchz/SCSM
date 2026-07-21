@@ -2,11 +2,13 @@
     resources/views/pages/alerts.blade.php
     Route: GET /alerts -> App\Http\Controllers\AlertsController@index
 --}}
-@extends('sales-performance-reporting.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Alerts')
 
+
 @section('content')
+
 
     @if (session('success'))
         <div class="card panel" style="background:#e9f5d3; border-color:#c9e6a0; color:#3a5c22; font-weight:700; margin-bottom:22px;">

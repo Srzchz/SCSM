@@ -2,12 +2,14 @@
     resources/views/pages/targets.blade.php
     Route: GET /targets -> App\Http\Controllers\TargetsController@index
 --}}
-@extends('sales-performance-reporting.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Targets')
 
+
 @section('content')
 
+    <link rel="stylesheet" href="styles.css">
     <section class="stat-grid">
         <div class="card stat-card">
             <div class="stat-label">Reps on Track</div>

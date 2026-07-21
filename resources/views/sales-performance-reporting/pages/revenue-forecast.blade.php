@@ -2,12 +2,14 @@
     resources/views/pages/revenue-forecast.blade.php
     Route example: Route::get('/revenue-forecast', fn () => view('pages.revenue-forecast', ['active' => 'revenue-forecast']));
 --}}
-@extends('sales-performance-reporting.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Revenue Forecast')
 
+
 @section('content')
 
+<link rel="stylesheet" href="styles.css">
     <section class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
         <div class="card stat-card">
             <div class="stat-label">$ EOQ Forecast</div>
