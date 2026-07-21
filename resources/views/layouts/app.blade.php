@@ -71,13 +71,13 @@
       x-data="{ ui: { exportOpen: false, settingsOpen: false, addCustomerOpen: false } }"
       x-init="Curema.settings.applyDarkMode();">
 
-    <aside class="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-[250px] bg-curema-card border-r border-curema-border p-5 z-30">
-        <a href="{{ route('dashboard') }}" class="flex items-center gap-2 px-1 pb-6 mb-2 border-b border-curema-border">
+    <aside class="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-[250px] bg-curema-card border-r border-curema-border p-5 z-30 overflow-hidden">
+        <a href="{{ route('dashboard') }}" class="flex-shrink-0 flex items-center gap-2 px-1 pb-6 mb-2 border-b border-curema-border">
             <div class="w-9 h-9 rounded-xl bg-curema-purplesoft flex items-center justify-center text-lg">�</div>
             <span class="text-xl font-extrabold tracking-tight">SCSM</span>
         </a>
 
-        <nav class="flex-1 mt-4 space-y-0">
+        <nav class="flex-1 min-h-0 overflow-y-auto mt-4 space-y-0 pr-1">
             @php
                 $nav = [
                     ['icon' => '▦', 'label' => 'Dashboard', 'route' => 'dashboard'],
@@ -111,7 +111,7 @@
             @endforeach
         </nav>
 
-        <div class="pt-4 mt-4 border-t border-curema-border space-y-1">
+        <div class="flex-shrink-0 pt-4 mt-4 border-t border-curema-border space-y-1">
             <a href="{{ route('account') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-curema-ink/70 hover:bg-curema-bg">
                 <span class="w-5 text-center">◐</span> Account
             </a>
