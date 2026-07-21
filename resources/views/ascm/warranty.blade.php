@@ -1,13 +1,14 @@
-{{--
-    Section: Warranty
-    id="warranty" on the parent <section> (set in spa.blade.php) is what
-    app.js looks for when the "Warranty" sidebar item is clicked.
+@extends('layouts.app')
 
-    Data comes from DashboardController@index: $warrantyClaims (paginated
-    Eloquent, 10 per page), $warrantyStats (counts across the whole
-    table), $warrantyDetails (per-claim coverage/notes/documents/repairs
-    for the rows on the current page, pre-shaped for the off-canvas
-    panel's JS).
+@section('title', 'Warranty')
+
+@section('content')
+{{--
+    Warranty page — data comes from AscmShellController@warranty:
+    $warrantyClaims (paginated Eloquent, 10 per page), $warrantyStats
+    (counts across the whole table), $warrantyDetails (per-claim
+    coverage/notes/documents/repairs for the rows on the current page,
+    pre-shaped for the off-canvas panel's JS).
 
     Decision changes, notes, and repair creation are real form submissions
     — see WarrantyController. Every row's actions are collapsed into a
@@ -154,8 +155,7 @@
                 </div>
             </div>
 
-            <form id="warranty-filter-form" class="filters" aria-label="Warranty filters" method="GET" action="{{ route('ascm.dashboard') }}#warranty">
-                <input type="hidden" name="section" value="warranty">
+            <form id="warranty-filter-form" class="filters" aria-label="Warranty filters" method="GET" action="{{ route('ascm.warranty') }}">
 
                 <div class="filter filter-select">
                     <label class="filter-label" for="warranty-type">Type</label>
@@ -197,7 +197,7 @@
                 <div class="filter filter-buttons">
                     <button type="submit" class="btn btn-ghost btn-compact">Apply</button>
                     @if ($hasActiveWarrantyFilters)
-                        <a href="{{ route('dashboard', ['section' => 'warranty']) }}#warranty" class="btn btn-ghost btn-compact">Clear</a>
+                        <a href="{{ route('ascm.warranty') }}" class="btn btn-ghost btn-compact">Clear</a>
                     @endif
                 </div>
             </form>
@@ -221,7 +221,7 @@
                                 $productName = optional($registration)->product->name ?? null;
                                 $serial = $registration->serial_number ?? $registration->asset_tag ?? null;
                                 $coverageKey = $registration ? str_replace(' ', '_', strtolower($registration->coverage_status)) : null;
-                                $claimMeta = ($claim->customer->full_name ?? '—') . ($productName ? ' • ' . $productName : '') . ($serial ? ' • ' . $serial : '');
+                                $claimMeta = ($claim->customer->name ?? '—') . ($productName ? ' • ' . $productName : '') . ($serial ? ' • ' . $serial : '');
                                 // See the matching note in cases.blade.php: the @json Blade
                                 // directive splits on every top-level comma, which mangles a
                                 // multi-key array literal default like the one below. Encode by
@@ -235,7 +235,7 @@
                             <tr>
                                 <td><span class="mono">{{ $claim->claim_number }}</span></td>
                                 <td>
-                                    <div class="cell-primary">{{ $claim->customer->full_name ?? '—' }}</div>
+                                    <div class="cell-primary">{{ $claim->customer->name ?? '—' }}</div>
                                     @if ($productName || $serial)
                                         <div class="cell-sub">{{ $productName ?? '—' }}@if($serial) • {{ $serial }} @endif</div>
                                     @endif
@@ -316,6 +316,21 @@
 </div>
 
 <style>
+    /* These custom properties mirror Curema's Tailwind color tokens
+       (see tailwind.config in crm.layouts.app) so this page's hand-rolled
+       CSS doesn't depend on ascm's now-unused public/css/app.css. */
+    :root{
+        --color-bg:#E9EBFC;
+        --color-text:#120F34;
+        --color-text-muted:#5B5876;
+        --color-primary:#120F34;
+        --color-primary-light:#CFD2F9;
+        --color-indicator-text-green:#00630F;
+        --color-indicator-text-blue:#004169;
+        --color-indicator-text-red:#8A2A1F;
+        --color-indicator-text-yellow:#7A5B12;
+    }
+
     .warranty-wrapper{padding-top:8px;}
     .page-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(18,15,52,0.08);}
     .page-header-actions{display:flex;align-items:center;gap:10px;}
@@ -548,9 +563,9 @@
             panel.querySelector('.detail-case-meta').textContent = meta;
 
             if (decisionSelect) decisionSelect.value = status;
-            if (decisionForm) decisionForm.action = '/ascm/warranty/' + pk + '/decision' + (currentQuery ? ('?' + currentQuery) : '');
-            if (noteForm) noteForm.action = '/ascm/warranty/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
-            if (repairForm) repairForm.action = '/ascm/warranty/' + pk + '/repair' + (currentQuery ? ('?' + currentQuery) : '');
+            if (decisionForm) decisionForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/decision' + (currentQuery ? ('?' + currentQuery) : '');
+            if (noteForm) noteForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
+            if (repairForm) repairForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/repair' + (currentQuery ? ('?' + currentQuery) : '');
 
             setText('panel-warranty-period', coverage.period);
             setText('panel-warranty-eligibility', coverage.eligibility);
@@ -683,3 +698,4 @@
         window.addEventListener('resize', closeAllMenus);
     })();
 </script>
+@endsection

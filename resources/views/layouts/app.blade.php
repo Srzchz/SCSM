@@ -89,7 +89,8 @@
                     ['icon' => '🚚', 'label' => 'Sales Orders', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'orders']],
                     ['icon' => '🏷️', 'label' => 'Pricing Rules', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'pricing']],
                     ['icon' => '🧾', 'label' => 'Invoicing', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'invoicing']],
-                    ['icon' => '◎', 'label' => 'After-Sales Support', 'route' => 'after-sales-support'],
+                    ['icon' => '◎', 'label' => 'Cases', 'route' => 'ascm.cases'],
+                    ['icon' => '◈', 'label' => 'Warranty', 'route' => 'ascm.warranty'],
                     ['icon' => '▮', 'label' => 'Sales Report', 'route' => 'sales-report'],
                 ];
                 $active = $active ?? 'Dashboard';

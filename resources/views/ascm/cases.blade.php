@@ -1,12 +1,13 @@
-{{--
-    Section: Cases
-    id="cases" on the parent <section> (set in spa.blade.php) is what
-    app.js looks for when the "Cases" sidebar item is clicked.
+@extends('layouts.app')
 
-    Data comes from DashboardController@index: $cases (paginated Eloquent,
-    10 per page), $caseStats (counts across the whole table), $caseDetails
-    (per-case notes/attachments/history for the rows on the current page,
-    keyed by case id, pre-shaped for the off-canvas panel's JS).
+@section('title', 'Cases')
+
+@section('content')
+{{--
+    Cases page — data comes from AscmShellController@cases: $cases
+    (paginated Eloquent, 10 per page), $caseStats (counts across the whole
+    table), $caseDetails (per-case notes/attachments/history for the rows
+    on the current page, pre-shaped for the off-canvas panel's JS).
 
     Status updates, notes, escalate, and close are real form submissions —
     see CaseController. Every row's actions are collapsed into a single
@@ -145,8 +146,7 @@
                 </div>
             </div>
 
-            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('ascm.dashboard') }}#cases">
-                <input type="hidden" name="section" value="cases">
+            <form id="cases-filter-form" class="filters" aria-label="Case filters" method="GET" action="{{ route('ascm.cases') }}">
 
                 <div class="filter filter-date">
                     <label class="filter-label" for="cases-date-from">From</label>
@@ -183,7 +183,7 @@
                 <div class="filter filter-buttons">
                     <button type="submit" class="btn btn-ghost btn-compact">Apply</button>
                     @if ($hasActiveCaseFilters)
-                        <a href="{{ route('dashboard', ['section' => 'cases']) }}#cases" class="btn btn-ghost btn-compact">Clear</a>
+                        <a href="{{ route('ascm.cases') }}" class="btn btn-ghost btn-compact">Clear</a>
                     @endif
                 </div>
             </form>
@@ -205,7 +205,7 @@
                         @forelse ($cases as $case)
                             @php
                                 $productName = optional($case->product ?? optional($case->orderItem)->product)->name;
-                                $caseMeta = ($case->customer->full_name ?? '—') . ' • ' . $case->category . ' • ' . ucfirst($case->priority) . ' priority';
+                                $caseMeta = ($case->customer->name ?? '—') . ' • ' . $case->category . ' • ' . ucfirst($case->priority) . ' priority';
                                 // NOTE: don't use the @json Blade directive here — it splits its
                                 // expression on every top-level comma (to separate the optional
                                 // json_encode $options/$depth args), which mangles any array
@@ -221,7 +221,7 @@
                             <tr>
                                 <td><span class="mono">{{ $case->case_number }}</span></td>
                                 <td>
-                                    <div class="cell-primary">{{ $case->customer->full_name ?? '—' }}</div>
+                                    <div class="cell-primary">{{ $case->customer->name ?? '—' }}</div>
                                     @if ($case->order || $productName)
                                         <div class="cell-sub">{{ $case->order->order_number ?? '—' }}@if($productName) • {{ $productName }} @endif</div>
                                     @endif
@@ -300,6 +300,21 @@
 </div>
 
 <style>
+    /* These custom properties mirror Curema's Tailwind color tokens
+       (see tailwind.config in crm.layouts.app) so this page's hand-rolled
+       CSS doesn't depend on ascm's now-unused public/css/app.css. */
+    :root{
+        --color-bg:#E9EBFC;
+        --color-text:#120F34;
+        --color-text-muted:#5B5876;
+        --color-primary:#120F34;
+        --color-primary-light:#CFD2F9;
+        --color-indicator-text-green:#00630F;
+        --color-indicator-text-blue:#004169;
+        --color-indicator-text-red:#8A2A1F;
+        --color-indicator-text-yellow:#7A5B12;
+    }
+
     .cases-wrapper{padding-top:8px;}
     .page-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(18,15,52,0.08);}
     .page-header-actions{display:flex;align-items:center;gap:10px;}
@@ -499,8 +514,8 @@
             panel.querySelector('.detail-case-meta').textContent = meta;
 
             if (statusSelect) statusSelect.value = status;
-            if (statusForm) statusForm.action = '/ascm/cases/' + pk + '/status' + (currentQuery ? ('?' + currentQuery) : '');
-            if (noteForm) noteForm.action = '/ascm/cases/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
+            if (statusForm) statusForm.action = '{{ url('/ascm/cases') }}/' + pk + '/status' + (currentQuery ? ('?' + currentQuery) : '');
+            if (noteForm) noteForm.action = '{{ url('/ascm/cases') }}/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
 
             renderTimeline('panel-case-timeline', notes, 'No notes yet.');
             renderTimeline('panel-case-attachments', payload.attachments || [], 'No attachments.');
@@ -652,3 +667,4 @@
         window.addEventListener('resize', closeAllMenus);
     })();
 </script>
+@endsection
