@@ -12,13 +12,7 @@
         ['label' => 'Retention Rate', 'value' => '41.2%', 'change' => '+6.8%', 'icon' => '🏷️', 'bg' => 'bg-curema-orangesoft'],
     ];
 
-    $segments = [
-        ['label' => 'VIP', 'value' => 864, 'pct' => '17.7%', 'color' => '#AD9EFF'],
-        ['label' => 'Repeat Buyer', 'value' => 1302, 'pct' => '26.7%', 'color' => '#9CFF9F'],
-        ['label' => 'New Customers', 'value' => 1172, 'pct' => '24%', 'color' => '#7ED8FF'],
-        ['label' => 'At Risk', 'value' => 533, 'pct' => '11.5%', 'color' => '#FF9A91'],
-        ['label' => 'Inactive', 'value' => 985, 'pct' => '20.2%', 'color' => '#B0B4EC'],
-    ];
+
 @endphp
 
 @section('content')
