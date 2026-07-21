@@ -55,17 +55,18 @@ class SalesOrderController extends Controller
     public function bootstrap()
     {
         return response()->json([
-            'products' => Product::where('is_active', true)->get()->map(fn ($p) => [
-                'product_id' => $p->id,
-                'name' => $p->name,
-                'category' => $p->category,
-                'unit_price' => (float) ($p->unit_price ?? $p->price),
-            ]),
-            'customers' => Customer::with('insight')->get()->map(fn ($c) => [
-                'customer_id' => $c->customer_id,
-                'name' => $c->full_name,
-                'segment' => optional($c->insight)->customer_type ?? 'New Customer',
-            ]),
+            'products'     => Product::all(['id', 'name', 'category', 'unit_price'])
+                                ->map(fn ($p) => [
+                                    'product_id' => $p->id,
+                                    'name'       => $p->name,
+                                    'category'   => $p->category,
+                                    'unit_price' => (float) $p->unit_price,
+                                ]),
+            'customers'    => Customer::all(['customer_id', 'first_name', 'last_name'])
+                                ->map(fn ($c) => [
+                                    'customer_id' => $c->customer_id,
+                                    'name'        => $c->full_name,
+                                ]),
             'pricingRules' => PricingRule::orderByDesc('created_at')->get()
                                 ->map(fn ($r) => $this->transformPricingRule($r)),
             'taxRegions' => TaxRegion::orderByDesc('is_default')->orderBy('country')->get()
