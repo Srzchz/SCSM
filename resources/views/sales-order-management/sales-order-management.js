@@ -139,7 +139,7 @@ function openInvoicePdf(invoice) {
       <div class="grand">Total <b>${money(invoice.total)}</b></div>
     </div>
     <p style="margin-top:32px;color:#8884A3;font-size:11px;">Status: ${invoice.status}</p>
-    <script>window.onload=()=>window.print();</script>
+    <script>window.onload=()=>window.print();<\/script>
   </body></html>`);
   win.document.close();
 }

@@ -13,7 +13,9 @@
 @section('title', 'Sales Order Management')
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('css/fanatec.css') }}">
+    <style>
+        {!! file_get_contents(resource_path('views/sales-order-management/sales-order-management.css')) !!}
+    </style>
 @endpush
 
 @section('content')
@@ -21,5 +23,7 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('js/fanatec.js') }}"></script>
+    <script>
+        {!! file_get_contents(resource_path('views/sales-order-management/sales-order-management.js')) !!}
+    </script>
 @endpush
