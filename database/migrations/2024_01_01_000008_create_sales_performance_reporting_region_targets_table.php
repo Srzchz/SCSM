@@ -17,7 +17,7 @@ return new class extends Migration
             $table->decimal('actual_amount', 14, 2)->default(0);
 
             $table->foreign('region_id')->references('id')->on('regions')->cascadeOnDelete();
-            $table->unique(['region_id', 'period']);
+            $table->unique(['region_id', 'period'], 'sprt_region_targets_region_period_unique');
         });
     }
 

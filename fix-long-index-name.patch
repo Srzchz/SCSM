@@ -1,0 +1,11 @@
+--- a/database/migrations/2024_01_01_000008_create_sales_performance_reporting_region_targets_table.php
++++ b/database/migrations/2024_01_01_000008_create_sales_performance_reporting_region_targets_table.php
+@@ -17,7 +17,7 @@
+             $table->decimal('actual_amount', 14, 2)->default(0);
+ 
+             $table->foreign('region_id')->references('id')->on('regions')->cascadeOnDelete();
+-            $table->unique(['region_id', 'period']);
++            $table->unique(['region_id', 'period'], 'sprt_region_targets_region_period_unique');
+         });
+     }
+ 
