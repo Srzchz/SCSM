@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('sales_order_items', function (Blueprint $table) {
             $table->id('sales_order_item_id');
             $table->foreignId('sales_order_id')->constrained('sales_orders', 'sales_order_id')->cascadeOnDelete();
-            $table->foreignId('product_id')->constrained('products', 'product_id'); // ref from Inventory module
+            $table->foreignId('product_id')->constrained('products', 'id'); // ref from Inventory module
             $table->integer('quantity');
             $table->decimal('unit_price', 10, 2);
             $table->decimal('discount_percent', 5, 2)->nullable();

@@ -1,0 +1,619 @@
+diff --git a/app/Models/Customer.php b/app/Models/Customer.php
+index e570570..1d3a19c 100644
+--- a/app/Models/Customer.php
++++ b/app/Models/Customer.php
+@@ -2,10 +2,14 @@
+ 
+ namespace App\Models;
+ 
++use App\Modules\CommunicationLogs\Models\CommunicationLog;
++use App\Modules\CRM\Models\CustomerInsight;
+ use Illuminate\Database\Eloquent\Factories\HasFactory;
+ use Illuminate\Database\Eloquent\Model;
+ use Illuminate\Database\Eloquent\Relations\HasMany;
++use Illuminate\Database\Eloquent\Relations\HasOne;
+ use Illuminate\Database\Eloquent\SoftDeletes;
++use Carbon\Carbon;
+ 
+ /**
+  * SHARED / CORE MODEL — owned by the E-commerce module, not SCSM.
+@@ -44,6 +48,46 @@ public function orders(): HasMany
+         return $this->hasMany(Order::class, 'customer_id', 'customer_id');
+     }
+ 
++    /**
++     * Support tickets / chat threads for this customer, used by the CRM
++     * overview and communication pages.
++     */
++    public function communicationLogs(): HasMany
++    {
++        return $this->hasMany(CommunicationLog::class, 'customer_id', 'customer_id');
++    }
++
++    /**
++     * CRM-owned 1:1 extension of this record (address, dob, CLV, etc).
++     * See App\Modules\CRM\Models\CustomerInsight.
++     */
++    public function insight(): HasOne
++    {
++        return $this->hasOne(CustomerInsight::class, 'customer_id', 'customer_id');
++    }
++
++    /**
++     * Derives a CRM segment from real order activity rather than storing
++     * it, so it never goes stale. Mirrors the badge labels the CRM views
++     * already know how to render (see DemoCustomers::segmentBadgeClasses).
++     */
++    public static function computeSegment(int $totalOrders, float $totalSpent, ?Carbon $lastOrderDate): string
++    {
++        if ($totalOrders === 0) {
++            return 'New Customer';
++        }
++
++        if ($lastOrderDate && $lastOrderDate->lt(now()->subDays(90))) {
++            return 'Inactive';
++        }
++
++        if ($totalOrders >= 10 || $totalSpent >= 50000) {
++            return 'VIP';
++        }
++
++        return 'Repeat Buyer';
++    }
++
+     /**
+      * Convenience accessor — the canonical schema only stores first_name/
+      * last_name separately. Added so modules that just need a display name
+diff --git a/app/Models/Product.php b/app/Models/Product.php
+index 6e61742..0dd10b6 100644
+--- a/app/Models/Product.php
++++ b/app/Models/Product.php
+@@ -12,7 +12,15 @@ class Product extends Model
+ {
+     use HasFactory;
+ 
+-    protected $primaryKey = 'product_id';
++    // NOTE: the products table uses the default `id` auto-increment column
++    // (see the create_products_table migration's `$table->id()`), not
++    // `product_id`. Other modules' migrations that reference this table by
++    // `product_id` have been corrected to point at `id` instead.
++    protected $fillable = ['sku', 'name', 'category', 'price', 'unit_price', 'is_active'];
+ 
+-    protected $fillable = ['name', 'category', 'unit_price'];
++    protected $casts = [
++        'price' => 'decimal:2',
++        'unit_price' => 'decimal:2',
++        'is_active' => 'boolean',
++    ];
+ }
+diff --git a/database/migrations/2026_07_08_000005_create_sales_quotation_items_table.php b/database/migrations/2026_07_08_000005_create_sales_quotation_items_table.php
+index b4528a1..b1d7f5d 100644
+--- a/database/migrations/2026_07_08_000005_create_sales_quotation_items_table.php
++++ b/database/migrations/2026_07_08_000005_create_sales_quotation_items_table.php
+@@ -18,7 +18,7 @@ public function up(): void
+             ->constrained('sales_order_management_sales_quotations', 'quotation_id')
+             ->cascadeOnDelete()
+             ->name('som_quotation_items_quotation_id_foreign');
+-            $table->foreignId('product_id')->constrained('products', 'product_id'); // ref from Inventory module
++            $table->foreignId('product_id')->constrained('products', 'id'); // ref from Inventory module
+             $table->integer('quantity');
+             $table->decimal('unit_price', 10, 2);
+             $table->decimal('discount_percent', 5, 2)->nullable();
+diff --git a/database/migrations/2026_07_08_000007_create_sales_order_items_table.php b/database/migrations/2026_07_08_000007_create_sales_order_items_table.php
+index cd804fb..91267c7 100644
+--- a/database/migrations/2026_07_08_000007_create_sales_order_items_table.php
++++ b/database/migrations/2026_07_08_000007_create_sales_order_items_table.php
+@@ -15,7 +15,7 @@ public function up(): void
+         Schema::create('sales_order_items', function (Blueprint $table) {
+             $table->id('sales_order_item_id');
+             $table->foreignId('sales_order_id')->constrained('sales_orders', 'sales_order_id')->cascadeOnDelete();
+-            $table->foreignId('product_id')->constrained('products', 'product_id'); // ref from Inventory module
++            $table->foreignId('product_id')->constrained('products', 'id'); // ref from Inventory module
+             $table->integer('quantity');
+             $table->decimal('unit_price', 10, 2);
+             $table->decimal('discount_percent', 5, 2)->nullable();
+diff --git a/database/seeders/CustomerSeeder.php b/database/seeders/CustomerSeeder.php
+index 09f82a2..3a84da8 100644
+--- a/database/seeders/CustomerSeeder.php
++++ b/database/seeders/CustomerSeeder.php
+@@ -8,29 +8,72 @@
+ 
+ class CustomerSeeder extends Seeder
+ {
++    /**
++     * Generates 100 customers plus their crm_customer_insights row.
++     * total_orders / total_spent / clv / customer_type are filled in by
++     * OrderSeeder once order history exists, so this seeder only sets up
++     * identity + demographic data.
++     */
++    private array $firstNames = [
++        'Bryan', 'Arren', 'Charles', 'Harvey', 'Charlize', 'Miguel', 'Andrea', 'Joshua', 'Kristine', 'Paolo',
++        'Angela', 'Marco', 'Bianca', 'Rafael', 'Camille', 'Vincent', 'Danica', 'Gabriel', 'Ella', 'Nathaniel',
++        'Trisha', 'Justin', 'Michelle', 'Adrian', 'Samantha', 'Christian', 'Alyssa', 'Kevin', 'Jasmine', 'Patrick',
++    ];
++
++    private array $lastNames = [
++        'Suico', 'Toong', 'Nodalo', 'Baysac', 'Casama', 'Reyes', 'Santos', 'Cruz', 'Bautista', 'Garcia',
++        'Mendoza', 'Ramos', 'Torres', 'Gonzales', 'Villanueva', 'Aquino', 'Del Rosario', 'Pascual', 'Flores', 'Rivera',
++        'Salazar', 'Castillo', 'Navarro', 'Domingo', 'Marasigan', 'Alonzo', 'Ilagan', 'Manalo', 'Cabrera', 'Espino',
++    ];
++
++    private array $barangays = [
++        'Poblacion', 'San Isidro', 'San Roque', 'Santo Niño', 'San Jose', 'Bagong Silang',
++        'San Juan', 'Santa Cruz', 'Malabon', 'Bagumbayan', 'San Miguel', 'San Vicente',
++    ];
++
++    private array $cities = [
++        'Indang, Cavite', 'Trece Martires, Cavite', 'Dasmariñas, Cavite', 'Imus, Cavite',
++        'General Trias, Cavite', 'Tagaytay, Cavite', 'Bacoor, Cavite', 'Silang, Cavite',
++        'Calamba, Laguna', 'Santa Rosa, Laguna', 'Los Baños, Laguna', 'San Pablo, Laguna',
++        'Lipa, Batangas', 'Batangas City, Batangas', 'Antipolo, Rizal', 'Lucena, Quezon',
++    ];
++
++    private array $channels = ['Email', 'SMS', 'Email, SMS', 'Phone', 'Chat'];
++
+     public function run(): void
+     {
+-        // 'address' has no home on the canonical Customer model (E-commerce
+-        // schema keeps addresses on Orders as shipping_address, not on the
+-        // customer record itself) — kept here only as a demo-data comment,
+-        // not written to the DB. See change log.
+-        $customers = [
+-            ['first_name' => 'Bryan', 'last_name' => 'Suico'],
+-            ['first_name' => 'Arren', 'last_name' => 'Toong'],
+-            ['first_name' => 'Charles', 'last_name' => 'Nodalo'],
+-            ['first_name' => 'Harvey', 'last_name' => 'Baysac'],
+-        ];
+-
+-        foreach ($customers as $c) {
+-            Customer::firstOrCreate(
+-                ['email' => strtolower($c['first_name'] . '.' . $c['last_name']) . '@example.test'],
++        for ($i = 0; $i < 100; $i++) {
++            $firstName = $this->firstNames[$i % count($this->firstNames)];
++            $lastName = $this->lastNames[($i * 17 + 5) % count($this->lastNames)];
++
++            // Suffix keeps the email unique even where the same first+last
++            // combo would otherwise repeat across the 100 rows.
++            $email = strtolower($firstName . '.' . str_replace(' ', '', $lastName) . $i) . '@example.test';
++
++            $dob = now()->subYears(random_int(20, 45))->subDays(random_int(0, 365))->toDateString();
++            $customerSince = now()->subMonths(random_int(1, 24))->subDays(random_int(0, 28));
++
++            $customer = Customer::firstOrCreate(
++                ['email' => $email],
+                 [
+-                    ...$c,
++                    'first_name' => $firstName,
++                    'last_name' => $lastName,
+                     'password' => Hash::make('password'),
++                    'phone_number' => '09' . random_int(100000000, 999999999),
+                     'status' => 'Active',
+                     'role' => 'customer',
++                    'last_login' => now()->subDays(random_int(0, 60)),
+                 ]
+             );
++
++            $customer->insight()->firstOrCreate([], [
++                'address' => $this->barangays[array_rand($this->barangays)] . ', ' . $this->cities[array_rand($this->cities)],
++                'dob' => $dob,
++                'customer_since' => $customerSince->toDateString(),
++                'customer_type' => 'New Customer',
++                'preferred_channel' => $this->channels[array_rand($this->channels)],
++                'clv' => 0,
++            ]);
+         }
+     }
+ }
+diff --git a/database/seeders/DatabaseSeeder.php b/database/seeders/DatabaseSeeder.php
+index f529469..1583469 100644
+--- a/database/seeders/DatabaseSeeder.php
++++ b/database/seeders/DatabaseSeeder.php
+@@ -19,6 +19,7 @@ public function run(): void
+         $this->call([
+             ProductSeeder::class,
+             CustomerSeeder::class,
++            OrderSeeder::class,
+             PricingRuleSeeder::class,
+             SalesQuotationSeeder::class,
+             SalesOrderSeeder::class,
+diff --git a/database/seeders/OrderSeeder.php b/database/seeders/OrderSeeder.php
+new file mode 100644
+index 0000000..31d4470
+--- /dev/null
++++ b/database/seeders/OrderSeeder.php
+@@ -0,0 +1,176 @@
++<?php
++
++namespace Database\Seeders;
++
++use App\Models\Customer;
++use App\Models\Order;
++use App\Models\OrderItem;
++use App\Models\Product;
++use Illuminate\Database\Seeder;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Str;
++
++class OrderSeeder extends Seeder
++{
++    private const VAT_RATE = 0.12; // Standard PH VAT
++    private const SHIPPING_FEE = 150.00;
++
++    public function run(): void
++    {
++        // Skip if orders already exist, so re-running `db:seed` doesn't duplicate rows.
++        if (Order::exists()) {
++            return;
++        }
++
++        $products = Product::where('is_active', true)->get();
++
++        if ($products->isEmpty()) {
++            $this->command?->warn('OrderSeeder: no products found, skipping order history.');
++
++            return;
++        }
++
++        $statusWeights = [
++            'delivered' => 55,
++            'shipped' => 15,
++            'processing' => 12,
++            'pending' => 10,
++            'cancelled' => 8,
++        ];
++
++        $paymentByStatus = [
++            'delivered' => ['paid' => 90, 'refunded' => 10],
++            'shipped' => ['paid' => 100],
++            'processing' => ['paid' => 70, 'pending' => 30],
++            'pending' => ['pending' => 100],
++            'cancelled' => ['refunded' => 60, 'failed' => 40],
++        ];
++
++        $orderNumber = 100000;
++
++        Customer::with('insight')->get()->each(function (Customer $customer) use (
++            $products, $statusWeights, $paymentByStatus, &$orderNumber
++        ) {
++            $customerSince = $customer->insight?->customer_since ?? now()->subMonths(6);
++
++            // Skew order counts so most customers are casual buyers and a
++            // handful look like VIPs/repeat buyers — gives the segmentation
++            // and dashboards something realistic to show.
++            $orderCount = match (true) {
++                random_int(1, 100) <= 15 => random_int(10, 18), // VIP-ish
++                random_int(1, 100) <= 45 => random_int(3, 9),   // repeat buyers
++                default => random_int(0, 2),                    // new / light buyers
++            };
++
++            for ($i = 0; $i < $orderCount; $i++) {
++                $orderDate = fake()->dateTimeBetween($customerSince, 'now');
++                $status = $this->weightedPick($statusWeights);
++                $paymentStatus = $this->weightedPick($paymentByStatus[$status]);
++
++                $lineItems = $products->random(min(random_int(1, 4), $products->count()));
++                $subtotal = 0;
++                $itemRows = [];
++
++                foreach ($lineItems as $product) {
++                    $qty = random_int(1, 2);
++                    $unitPrice = (float) $product->price;
++                    $subtotal += $unitPrice * $qty;
++
++                    $itemRows[] = [
++                        'product_id' => $product->id,
++                        'quantity' => $qty,
++                        'unit_price' => $unitPrice,
++                    ];
++                }
++
++                $discount = random_int(1, 100) <= 20 ? round($subtotal * 0.05, 2) : 0;
++                $taxable = $subtotal - $discount;
++                $tax = round($taxable * self::VAT_RATE, 2);
++                $shippingFee = self::SHIPPING_FEE;
++                $grandTotal = round($taxable + $tax + $shippingFee, 2);
++
++                $order = Order::create([
++                    'customer_id' => $customer->customer_id,
++                    'order_number' => 'ORD-' . (++$orderNumber),
++                    'status' => $status,
++                    'subtotal' => round($subtotal, 2),
++                    'discount' => $discount,
++                    'shipping_fee' => $shippingFee,
++                    'tax' => $tax,
++                    'grand_total' => $grandTotal,
++                    'shipping_name' => $customer->full_name,
++                    'shipping_email' => $customer->email,
++                    'shipping_phone' => $customer->phone_number,
++                    'shipping_address' => $customer->insight?->address ?? 'Cavite, Philippines',
++                    'customer_received' => $status === 'delivered',
++                    'payment_status' => $paymentStatus,
++                    'payment_method' => fake()->randomElement(['GCash', 'Credit Card', 'Cash on Delivery', 'Bank Transfer']),
++                    'paid_at' => $paymentStatus === 'paid' ? $orderDate : null,
++                ]);
++
++                foreach ($itemRows as $row) {
++                    OrderItem::create(array_merge($row, ['order_id' => $order->order_id]));
++                }
++
++                // Backdate timestamps to spread orders realistically across
++                // the customer's lifetime instead of clustering at "now".
++                DB::table('orders')->where('order_id', $order->order_id)->update([
++                    'created_at' => $orderDate,
++                    'updated_at' => $orderDate,
++                ]);
++                DB::table('order_items')->where('order_id', $order->order_id)->update([
++                    'created_at' => $orderDate,
++                    'updated_at' => $orderDate,
++                ]);
++            }
++        });
++
++        $this->refreshCustomerInsights();
++    }
++
++    /**
++     * Recomputes clv/customer_type on crm_customer_insights from the real
++     * order data just seeded, mirroring CustomerController's live logic.
++     */
++    private function refreshCustomerInsights(): void
++    {
++        Customer::withCount('orders')
++            ->withSum('orders', 'grand_total')
++            ->with('insight')
++            ->get()
++            ->each(function (Customer $customer) {
++                if (! $customer->insight) {
++                    return;
++                }
++
++                $totalSpent = (float) ($customer->orders_sum_grand_total ?? 0);
++                $lastOrderDate = $customer->orders()->max('created_at');
++                $segment = Customer::computeSegment(
++                    $customer->orders_count,
++                    $totalSpent,
++                    $lastOrderDate ? \Carbon\Carbon::parse($lastOrderDate) : null
++                );
++
++                $customer->insight->update([
++                    'customer_type' => $segment,
++                    'clv' => round($totalSpent * 1.2, 2),
++                ]);
++            });
++    }
++
++    private function weightedPick(array $weights): string
++    {
++        $total = array_sum($weights);
++        $rand = random_int(1, $total);
++        $cumulative = 0;
++
++        foreach ($weights as $key => $weight) {
++            $cumulative += $weight;
++            if ($rand <= $cumulative) {
++                return $key;
++            }
++        }
++
++        return array_key_first($weights);
++    }
++}
+diff --git a/database/seeders/ProductSeeder.php b/database/seeders/ProductSeeder.php
+index d98b0be..a5e62f3 100644
+--- a/database/seeders/ProductSeeder.php
++++ b/database/seeders/ProductSeeder.php
+@@ -7,23 +7,103 @@
+ 
+ class ProductSeeder extends Seeder
+ {
++    /**
++     * PC parts catalog, grouped by category. Prices are illustrative mock
++     * PHP-peso pricing (not live market data), scaled roughly against real
++     * street pricing so charts/reports built on top of this look sane.
++     */
+     public function run(): void
+     {
+         $products = [
+-            ['name' => 'CSL DD Base 8Nm',                  'category' => 'Wheel Base',     'unit_price' => 20300],
+-            ['name' => 'Gran Turismo DD Pro 8Nm',          'category' => 'Wheel Base',     'unit_price' => 37700],
+-            ['name' => 'Podium DD2 Base 20Nm',             'category' => 'Wheel Base',     'unit_price' => 69600],
+-            ['name' => 'CSL Elite Pedals V2',              'category' => 'Pedals',         'unit_price' => 11600],
+-            ['name' => 'ClubSport Pedals V3',              'category' => 'Pedals',         'unit_price' => 23200],
+-            ['name' => 'CSL Steering Wheel McLaren GT3 V2','category' => 'Steering Wheel', 'unit_price' => 8700],
+-            ['name' => 'Podium Steering Wheel BMW M4 GT3', 'category' => 'Steering Wheel', 'unit_price' => 17400],
+-            ['name' => 'QR2 Quick Release',                'category' => 'Accessory',      'unit_price' => 4050],
+-            ['name' => 'CSL Elite Racing Cockpit',         'category' => 'Cockpit',        'unit_price' => 23200],
+-            ['name' => 'ClubSport Shifter SQ1.5',          'category' => 'Shifter',        'unit_price' => 8700],
++            // CPU
++            ['sku' => 'CPU-5600',     'name' => 'AMD Ryzen 5 5600',             'category' => 'CPU', 'price' => 6390],
++            ['sku' => 'CPU-13100F',   'name' => 'Intel Core i3-13100F',         'category' => 'CPU', 'price' => 6990],
++            ['sku' => 'CPU-7600X',    'name' => 'AMD Ryzen 5 7600X',            'category' => 'CPU', 'price' => 13990],
++            ['sku' => 'CPU-14600K',   'name' => 'Intel Core i5-14600K',         'category' => 'CPU', 'price' => 17490],
++            ['sku' => 'CPU-7800X3D',  'name' => 'AMD Ryzen 7 7800X3D',          'category' => 'CPU', 'price' => 22990],
++            ['sku' => 'CPU-14700K',   'name' => 'Intel Core i7-14700K',         'category' => 'CPU', 'price' => 24990],
++            ['sku' => 'CPU-9950X',    'name' => 'AMD Ryzen 9 9950X',            'category' => 'CPU', 'price' => 34990],
++            ['sku' => 'CPU-14900K',   'name' => 'Intel Core i9-14900K',         'category' => 'CPU', 'price' => 32990],
++
++            // GPU
++            ['sku' => 'GPU-3060-12',  'name' => 'GeForce RTX 3060 12GB',        'category' => 'GPU', 'price' => 15990],
++            ['sku' => 'GPU-4060',     'name' => 'GeForce RTX 4060 8GB',         'category' => 'GPU', 'price' => 17990],
++            ['sku' => 'GPU-7600',     'name' => 'Radeon RX 7600 8GB',           'category' => 'GPU', 'price' => 15490],
++            ['sku' => 'GPU-4070S',    'name' => 'GeForce RTX 4070 Super 12GB',  'category' => 'GPU', 'price' => 34990],
++            ['sku' => 'GPU-7800XT',   'name' => 'Radeon RX 7800 XT 16GB',       'category' => 'GPU', 'price' => 28990],
++            ['sku' => 'GPU-4080S',    'name' => 'GeForce RTX 4080 Super 16GB',  'category' => 'GPU', 'price' => 59990],
++            ['sku' => 'GPU-7900XTX',  'name' => 'Radeon RX 7900 XTX 24GB',      'category' => 'GPU', 'price' => 56990],
++            ['sku' => 'GPU-4090',     'name' => 'GeForce RTX 4090 24GB',        'category' => 'GPU', 'price' => 99990],
++
++            // Motherboard
++            ['sku' => 'MB-A620M',     'name' => 'A620M Pro RS (AM5)',           'category' => 'Motherboard', 'price' => 4990],
++            ['sku' => 'MB-B760M',     'name' => 'B760M Pro-A WiFi (LGA1700)',   'category' => 'Motherboard', 'price' => 7490],
++            ['sku' => 'MB-B650',      'name' => 'B650 Gaming Plus WiFi (AM5)',  'category' => 'Motherboard', 'price' => 9990],
++            ['sku' => 'MB-Z790',      'name' => 'Z790 Tomahawk WiFi (LGA1700)', 'category' => 'Motherboard', 'price' => 13990],
++            ['sku' => 'MB-X670E',     'name' => 'X670E AORUS Elite (AM5)',      'category' => 'Motherboard', 'price' => 16990],
++            ['sku' => 'MB-X870',      'name' => 'X870 Steel Legend (AM5)',      'category' => 'Motherboard', 'price' => 14990],
++
++            // Memory
++            ['sku' => 'RAM-16D4-3200', 'name' => '16GB (2x8GB) DDR4 3200MHz',   'category' => 'Memory', 'price' => 1990],
++            ['sku' => 'RAM-16D5-6000', 'name' => '16GB (2x8GB) DDR5 6000MHz',   'category' => 'Memory', 'price' => 3290],
++            ['sku' => 'RAM-32D5-6000', 'name' => '32GB (2x16GB) DDR5 6000MHz',  'category' => 'Memory', 'price' => 5990],
++            ['sku' => 'RAM-32D4-3600', 'name' => '32GB (2x16GB) DDR4 3600MHz',  'category' => 'Memory', 'price' => 4290],
++            ['sku' => 'RAM-64D5-5600', 'name' => '64GB (2x32GB) DDR5 5600MHz',  'category' => 'Memory', 'price' => 10990],
++
++            // Storage
++            ['sku' => 'SSD-500-G3',   'name' => '500GB NVMe Gen3 SSD',          'category' => 'Storage', 'price' => 1590],
++            ['sku' => 'SSD-1TB-G4',   'name' => '1TB NVMe Gen4 SSD',            'category' => 'Storage', 'price' => 2790],
++            ['sku' => 'SSD-2TB-G4',   'name' => '2TB NVMe Gen4 SSD',            'category' => 'Storage', 'price' => 5290],
++            ['sku' => 'SSD-4TB-G4',   'name' => '4TB NVMe Gen4 SSD',            'category' => 'Storage', 'price' => 10990],
++            ['sku' => 'SSD-2TB-SATA', 'name' => '2TB SATA SSD',                 'category' => 'Storage', 'price' => 4290],
++            ['sku' => 'HDD-4TB-7200', 'name' => '4TB 7200RPM HDD',              'category' => 'Storage', 'price' => 4590],
++
++            // Power Supply
++            ['sku' => 'PSU-550-BR',   'name' => '550W 80+ Bronze',              'category' => 'Power Supply', 'price' => 2490],
++            ['sku' => 'PSU-650-BR',   'name' => '650W 80+ Bronze',              'category' => 'Power Supply', 'price' => 2990],
++            ['sku' => 'PSU-750-GD',   'name' => '750W 80+ Gold',                'category' => 'Power Supply', 'price' => 4490],
++            ['sku' => 'PSU-850-GDM',  'name' => '850W 80+ Gold Modular',        'category' => 'Power Supply', 'price' => 6490],
++            ['sku' => 'PSU-1000-PTM', 'name' => '1000W 80+ Platinum Modular',   'category' => 'Power Supply', 'price' => 9990],
++
++            // Cooling
++            ['sku' => 'COOL-AIRLP',   'name' => 'Low-Profile Air Cooler',       'category' => 'Cooling', 'price' => 990],
++            ['sku' => 'COOL-AIRTWR',  'name' => 'Tower Air Cooler Dual Fan',    'category' => 'Cooling', 'price' => 2190],
++            ['sku' => 'COOL-AIO240',  'name' => '240mm AIO Liquid Cooler',      'category' => 'Cooling', 'price' => 4290],
++            ['sku' => 'COOL-AIO360',  'name' => '360mm AIO Liquid Cooler',      'category' => 'Cooling', 'price' => 6290],
++            ['sku' => 'COOL-FAN120',  'name' => '120mm RGB Case Fan (3-Pack)',  'category' => 'Cooling', 'price' => 1490],
++
++            // Case
++            ['sku' => 'CASE-ITX',     'name' => 'Mini-ITX Cube Case',           'category' => 'Case', 'price' => 3490],
++            ['sku' => 'CASE-MIDATX',  'name' => 'Mid Tower ATX Case',           'category' => 'Case', 'price' => 2990],
++            ['sku' => 'CASE-MESH',    'name' => 'Mesh Airflow Mid Tower',       'category' => 'Case', 'price' => 3990],
++            ['sku' => 'CASE-TG',      'name' => 'Tempered Glass Mid Tower',     'category' => 'Case', 'price' => 4290],
++            ['sku' => 'CASE-FULL',    'name' => 'Full Tower ATX Case',          'category' => 'Case', 'price' => 6990],
++
++            // Monitor
++            ['sku' => 'MON-24-144',   'name' => '24" 1080p 144Hz IPS Monitor',  'category' => 'Monitor', 'price' => 7490],
++            ['sku' => 'MON-27-165',   'name' => '27" 1440p 165Hz IPS Monitor',  'category' => 'Monitor', 'price' => 13990],
++            ['sku' => 'MON-27-240',   'name' => '27" 1440p 240Hz IPS Monitor',  'category' => 'Monitor', 'price' => 21990],
++            ['sku' => 'MON-32-4K',    'name' => '32" 4K 144Hz IPS Monitor',     'category' => 'Monitor', 'price' => 27990],
++
++            // Peripherals
++            ['sku' => 'PER-KB-MECH',  'name' => 'RGB Mechanical Keyboard',      'category' => 'Peripherals', 'price' => 2990],
++            ['sku' => 'PER-MOU-WL',   'name' => 'Wireless Gaming Mouse',        'category' => 'Peripherals', 'price' => 2490],
++            ['sku' => 'PER-HS-WL',    'name' => 'Wireless Gaming Headset',      'category' => 'Peripherals', 'price' => 3990],
++            ['sku' => 'PER-PAD-XL',   'name' => 'XL Desk Mousepad',             'category' => 'Peripherals', 'price' => 690],
++            ['sku' => 'PER-WEBCAM',   'name' => '1080p Webcam',                 'category' => 'Peripherals', 'price' => 1990],
+         ];
+ 
+         foreach ($products as $p) {
+-            Product::firstOrCreate(['name' => $p['name']], $p);
++            Product::firstOrCreate(
++                ['sku' => $p['sku']],
++                [
++                    'name' => $p['name'],
++                    'category' => $p['category'],
++                    'price' => $p['price'],
++                    'unit_price' => $p['price'],
++                    'is_active' => true,
++                ]
++            );
+         }
+     }
+ }
+diff --git a/database/seeders/SalesQuotationSeeder.php b/database/seeders/SalesQuotationSeeder.php
+index c86ef73..063bede 100644
+--- a/database/seeders/SalesQuotationSeeder.php
++++ b/database/seeders/SalesQuotationSeeder.php
+@@ -25,56 +25,67 @@ public function run(): void
+             'email' => 'admin@fanatec.local',
+         ])->id;
+ 
++        $customers = Customer::orderBy('customer_id')->take(4)->get();
++        $products = Product::inRandomOrder()->get();
++
++        if ($customers->count() < 4 || $products->count() < 3) {
++            // Not enough seeded customers/products yet — nothing to build sample quotations from.
++            return;
++        }
++
++        // Structure (status/timing/discount pattern) is fixed for a
++        // realistic demo funnel; the actual customer and products are
++        // picked dynamically so this seeder survives catalog changes.
+         $plans = [
+             [
+-                'customer' => 'Bryan Suico',
++                'customer' => $customers[0],
+                 'status'   => 'Draft',
+                 'daysAgo'  => 1,
+                 'items'    => [
+-                    ['product' => 'CSL DD Base 8Nm', 'qty' => 1, 'discount' => 0],
+-                    ['product' => 'CSL Elite Pedals V2', 'qty' => 1, 'discount' => 5],
++                    ['product' => $products[0], 'qty' => 1, 'discount' => 0],
++                    ['product' => $products[1], 'qty' => 1, 'discount' => 5],
+                 ],
+             ],
+             [
+-                'customer' => 'Arren Toong',
++                'customer' => $customers[1],
+                 'status'   => 'Sent',
+                 'daysAgo'  => 4,
+                 'items'    => [
+-                    ['product' => 'Gran Turismo DD Pro 8Nm', 'qty' => 2, 'discount' => 10],
+-                    ['product' => 'QR2 Quick Release', 'qty' => 2, 'discount' => 0],
++                    ['product' => $products[2], 'qty' => 2, 'discount' => 10],
++                    ['product' => $products[3 % $products->count()], 'qty' => 2, 'discount' => 0],
+                 ],
+             ],
+             [
+-                'customer' => 'Charles Nodalo',
++                'customer' => $customers[2],
+                 'status'   => 'Accepted',
+                 'daysAgo'  => 9,
+                 'items'    => [
+-                    ['product' => 'Podium DD2 Base 20Nm', 'qty' => 1, 'discount' => 0],
+-                    ['product' => 'Podium Steering Wheel BMW M4 GT3', 'qty' => 1, 'discount' => 0],
+-                    ['product' => 'ClubSport Pedals V3', 'qty' => 1, 'discount' => 8],
++                    ['product' => $products[4 % $products->count()], 'qty' => 1, 'discount' => 0],
++                    ['product' => $products[5 % $products->count()], 'qty' => 1, 'discount' => 0],
++                    ['product' => $products[6 % $products->count()], 'qty' => 1, 'discount' => 8],
+                 ],
+             ],
+             [
+-                'customer' => 'Harvey Baysac',
++                'customer' => $customers[3],
+                 'status'   => 'Rejected',
+                 'daysAgo'  => 15,
+                 'items'    => [
+-                    ['product' => 'CSL Elite Racing Cockpit', 'qty' => 3, 'discount' => 15],
++                    ['product' => $products[7 % $products->count()], 'qty' => 3, 'discount' => 15],
+                 ],
+             ],
+         ];
+ 
+         foreach ($plans as $plan) {
+-            [$firstName, $lastName] = explode(' ', $plan['customer'], 2);
+-            $customer = Customer::where('first_name', $firstName)->where('last_name', $lastName)->firstOrFail();
++            $customer = $plan['customer'];
+ 
+             $subtotal = 0;
+             $discountTotal = 0;
+             $lines = [];
+ 
+             foreach ($plan['items'] as $item) {
+-                $product = Product::where('name', $item['product'])->firstOrFail();
+-                $lineGross = $product->unit_price * $item['qty'];
++                $product = $item['product'];
++                $unitPrice = (float) ($product->unit_price ?? $product->price);
++                $lineGross = $unitPrice * $item['qty'];
+                 $lineDisc  = round($lineGross * ($item['discount'] / 100), 2);
+                 $lineTotal = round($lineGross - $lineDisc, 2);
+ 
+@@ -82,9 +93,9 @@ public function run(): void
+                 $discountTotal += $lineDisc;
+ 
+                 $lines[] = [
+-                    'product_id'       => $product->product_id,
++                    'product_id'       => $product->id,
+                     'quantity'         => $item['qty'],
+-                    'unit_price'       => $product->unit_price,
++                    'unit_price'       => $unitPrice,
+                     'discount_percent' => $item['discount'],
+                     'line_total'       => $lineTotal,
+                 ];
