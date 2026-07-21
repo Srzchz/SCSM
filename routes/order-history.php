@@ -1,8 +1,10 @@
 <?php
 
-use App\Modules\OrderHistory\Controllers\OrderController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('order-history')->group(function () {
-    Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
-});
+// Order History has been merged into Sales Order Management, which now
+// tracks the full order lifecycle (Pending → Processing → Shipped →
+// Delivered, hold/cancel, invoicing, payment status) in one place.
+Route::get('/order-history/orders', function () {
+    return redirect()->route('sales-order-management.index', ['tab' => 'orders']);
+})->name('orders.index');

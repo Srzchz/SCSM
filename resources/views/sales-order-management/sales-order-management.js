@@ -139,7 +139,7 @@ function openInvoicePdf(invoice) {
       <div class="grand">Total <b>${money(invoice.total)}</b></div>
     </div>
     <p style="margin-top:32px;color:#8884A3;font-size:11px;">Status: ${invoice.status}</p>
-    <script>window.onload=()=>window.print();</script>
+    <script>window.onload=()=>window.print();<\/script>
   </body></html>`);
   win.document.close();
 }
@@ -521,7 +521,9 @@ function NewQuoteModal() {
     <div class="modal">
       <h3>New Sales Quotation</h3>
       <label>Customer</label>
-      <input id="draftCust" value="${d.customer}" placeholder="Customer name">
+      <select id="draftCust">
+        ${CUSTOMERS.map(c => `<option value="${c.customer_id}" ${d.customer_id == c.customer_id ? 'selected' : ''}>${c.name}${c.segment ? ' — ' + c.segment : ''}</option>`).join('') || '<option disabled>No customers found</option>'}
+      </select>
       <label>Valid Until</label>
       <input id="draftValid" type="date" value="${d.validUntil}">
       <label>Tax Region</label>
@@ -785,14 +787,15 @@ function attachEvents() {
   if (newQuoteBtn) newQuoteBtn.onclick = () => {
     const defaultRegion = state.taxRegions.find(r => r.isDefault) || state.taxRegions[0];
     state.draft = {
-      customer: '', validUntil: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
+      customer_id: CUSTOMERS.length ? CUSTOMERS[0].customer_id : null,
+      validUntil: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
       tax_region_id: defaultRegion ? defaultRegion.id : null,
       items: PRODUCTS.length ? [{ product_id: PRODUCTS[0].product_id, quantity: 1, discount_percent: 0, discSource: 'custom' }] : [],
     };
     state.modal = { type: 'new-quote' };
     render();
   };
-  const dc = document.getElementById('draftCust'); if (dc) dc.oninput = e => { state.draft.customer = e.target.value; };
+  const dc = document.getElementById('draftCust'); if (dc) dc.onchange = e => { state.draft.customer_id = parseInt(e.target.value); };
   const dv = document.getElementById('draftValid'); if (dv) dv.onchange = e => { state.draft.validUntil = e.target.value; };
   const dtr = document.getElementById('draftTaxRegion'); if (dtr) dtr.onchange = e => { state.draft.tax_region_id = parseInt(e.target.value); };
   document.querySelectorAll('[data-product]').forEach(el => { el.onchange = e => {
@@ -838,10 +841,10 @@ function attachEvents() {
   const saveD = document.getElementById('saveD');
   if (saveD) saveD.onclick = async () => {
     const d = state.draft;
-    if (!d.customer || !d.items.length) return;
+    if (!d.customer_id || !d.items.length) return;
     try {
       await api('/quotations', { method: 'POST', body: JSON.stringify({
-        customer: d.customer, valid_until: d.validUntil, tax_region_id: d.tax_region_id, items: d.items,
+        customer_id: d.customer_id, valid_until: d.validUntil, tax_region_id: d.tax_region_id, items: d.items,
       }) });
       state.modal = null;
       await refresh();

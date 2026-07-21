@@ -4,19 +4,6 @@
 @source '../../storage/framework/views/*.php';
 
 @theme {
-    --color-bg: #F3F4FD;
-    --color-primary: #CFD2F9;
-    --color-primary-light: #E9EBFC;
-    --color-secondary: #B0B4EC;
-    --color-text: #120F34;
-    --color-indicator-red: #FF9A91;
-    --color-indicator-text-red: #EA3030;
-    --color-indicator-yellow: #F9DFAA;
-    --color-indicator-text-yellow: #CC9B28;
-    --color-indicator-green: #9CFF9F;
-    --color-indicator-text-green: #00630F;
-    --color-indicator-blue: #7ED8FF;
-    --color-indicator-text-blue: #004169;
-    --font-sans: 'Google Sans Plex', 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }

@@ -2,11 +2,27 @@
     resources/views/pages/generate-report.blade.php
     Route: GET /generate-report -> App\Http\Controllers\GenerateReportController@index
 --}}
-@extends('sales-performance-reporting.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Generate Report')
 
+@push('styles')
+    @include('sales-performance-reporting.partials.styles')
+@endpush
+
+@push('scripts')
+    @include('sales-performance-reporting.partials.scripts')
+@endpush
+
 @section('content')
+
+<div class="spr-page">
+    <div class="page-header">
+        <div>
+            <h1 class="section-title">Generate Report</h1>
+            <p class="section-hint">Build a custom sales report by dimension, range, and filters.</p>
+        </div>
+    </div>
 
     <section class="card panel" style="margin-bottom:22px;">
         <h2 style="margin-bottom:4px;">Generate Report</h2>
@@ -139,10 +155,10 @@
     <p id="reportEmptyState" class="card panel" style="display:none; text-align:center; color:var(--muted); font-weight:600;">
         Filters cleared. Choose your filters above and click <strong style="color:var(--ink); margin:0 4px;">Generate Report</strong> to see results.
     </p>
-
+</div>
 @endsection
 
-@section('extra-scripts')
+@push('scripts')
 <script>
     // ---------- Dataset per dimension, straight from the DB (see GenerateReportController) ----------
     const reportData = @json($reportData);
@@ -252,4 +268,4 @@
 
     generateReport();
 </script>
-@endsection
+@endpush

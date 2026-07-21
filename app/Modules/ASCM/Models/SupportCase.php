@@ -78,7 +78,7 @@ class SupportCase extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class, 'product_id', 'product_id');
+        return $this->belongsTo(Product::class, 'product_id', 'id');
     }
 
     public function assignee(): BelongsTo
@@ -109,5 +109,10 @@ class SupportCase extends Model
     public function warrantyClaims(): HasMany
     {
         return $this->hasMany(WarrantyClaim::class, 'case_id');
+    }
+
+    public function communicationLogs()
+    {
+        return $this->hasMany(\App\Modules\CommunicationLogs\Models\CommunicationLog::class, 'ticket_id', 'case_number');
     }
 }

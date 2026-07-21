@@ -2,11 +2,23 @@
     resources/views/pages/revenue-forecast.blade.php
     Route example: Route::get('/revenue-forecast', fn () => view('pages.revenue-forecast', ['active' => 'revenue-forecast']));
 --}}
-@extends('sales-performance-reporting.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Revenue Forecast')
 
+@push('styles')
+    @include('sales-performance-reporting.partials.styles')
+@endpush
+
 @section('content')
+
+<div class="spr-page">
+    <div class="page-header">
+        <div>
+            <h1 class="section-title">Revenue Forecast</h1>
+            <p class="section-hint">Projected revenue against actuals, driven by your assumptions.</p>
+        </div>
+    </div>
 
     <section class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
         <div class="card stat-card">
@@ -68,10 +80,10 @@
             <span><span class="legend-dot" style="background:#b7aef0"></span>Today</span>
         </div>
     </section>
-
+</div>
 @endsection
 
-@section('extra-scripts')
+@push('scripts')
 <script>
     const months   = @json($months);
     const actual   = @json($actual); // null = month hasn't closed yet (Chart.js will show a gap, which is correct)
@@ -161,4 +173,4 @@
 
     recalcForecast();
 </script>
-@endsection
+@endpush

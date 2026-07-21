@@ -27,11 +27,23 @@ class SalesOrder extends Model
         'tax_amount',
         'shipping_fee',
         'total_amount',
+        'payment_status',
+        'payment_method',
+        'shipping_name',
+        'shipping_email',
+        'shipping_phone',
+        'shipping_address',
+        'customer_received',
+        'paid_at',
+        'notes',
+        'origin',
     ];
 
     protected $casts = [
         'order_date' => 'date',
         'on_hold'    => 'boolean',
+        'customer_received' => 'boolean',
+        'paid_at' => 'datetime',
     ];
 
     public function quotation()

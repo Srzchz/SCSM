@@ -90,6 +90,7 @@ class AscmShellController extends Controller
             'assignee',
             'notes' => fn ($q) => $q->latest(),
             'notes.author',
+            'communicationLogs' => fn ($q) => $q->orderByDesc('log_date'),
             'attachments' => fn ($q) => $q->latest(),
             'attachments.uploadedBy',
             'statusHistory' => fn ($q) => $q->latest(),
@@ -125,6 +126,25 @@ class AscmShellController extends Controller
                     'meta' => $entry->created_at->diffForHumans() . ($entry->changedBy ? ' • ' . $entry->changedBy->name : ''),
                     'text' => $entry->note,
                 ])->values(),
+                'communication' => $case->notes
+                    ->where('visibility', 'customer_visible')
+                    ->map(fn ($note) => [
+                        'title' => $note->title ?: 'Update',
+                        'meta' => $note->created_at->diffForHumans() . ($note->author ? ' • ' . $note->author->name : ''),
+                        'text' => $note->body,
+                        'sort' => $note->created_at,
+                    ])
+                    ->concat(
+                        $case->communicationLogs->map(fn ($log) => [
+                            'title' => $log->issue ?: 'Message',
+                            'meta' => \Carbon\Carbon::parse($log->log_date)->diffForHumans() . ($log->mode ? ' • ' . $log->mode : ''),
+                            'text' => $log->details,
+                            'sort' => \Carbon\Carbon::parse($log->log_date),
+                        ])
+                    )
+                    ->sortByDesc('sort')
+                    ->map(fn ($item) => collect($item)->except('sort')->all())
+                    ->values(),
             ]];
         });
 

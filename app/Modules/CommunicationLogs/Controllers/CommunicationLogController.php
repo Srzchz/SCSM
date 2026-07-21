@@ -15,7 +15,7 @@ class CommunicationLogController extends Controller
         $caseStats = ['open' => 67, 'inProgress' => 43, 'resolved' => 69];
 
         $logs = CommunicationLog::with('customer')
-            ->orderByDesc('log_date')
+            ->orderByDesc('ticket_id')
             ->get()
             ->map(fn ($l) => [
                 'customer_id' => $l->customer_id,
