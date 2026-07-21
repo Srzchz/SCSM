@@ -35,5 +35,18 @@ class AppServiceProvider extends ServiceProvider
                 'userSettings' => $currentUser?->settings,
             ]);
         });
+
+            View::composer('sales-performance-reporting.layouts.app', function ($view) {
+        // Swap this for auth()->user() once real login is wired up.
+        $currentUser = User::with(['region', 'settings'])
+            ->where('role', 'manager')
+            ->first() ?? User::with(['region', 'settings'])->first();
+
+        $view->with([
+            'alertCount'  => Alert::where('is_read', false)->count(),
+            'accountUser' => $currentUser,
+            'userSettings' => $currentUser?->settings,
+        ]);
+    });
     }
 }

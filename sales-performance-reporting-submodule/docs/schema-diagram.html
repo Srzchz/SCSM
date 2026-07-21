@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SalesIQ — Database Schema</title>
+<style>
+    :root{
+        --bg:               #eceafc;
+        --panel:            #ffffff;
+        --ink:              #1f1147;
+        --ink-soft:         #4b3f78;
+        --muted:            #7a7398;
+        --border:           #d9d5f5;
+        --indigo:           #5b4fd1;
+        --indigo-bg:        #e7e3fb;
+        --neutral:          #6b7280;
+        --neutral-bg:       #eceef1;
+        --green:            #5a8f2b;
+        --green-bg:         #e9f5d3;
+        --amber:            #b8860b;
+        --amber-bg:         #fdf3d8;
+        --blue:             #3f6fd1;
+        --blue-bg:          #e6edfb;
+        --red:              #c0392b;
+        --red-bg:           #fbe3e1;
+        --radius:           16px;
+        --shadow:           0 4px 18px rgba(93,79,209,0.08);
+    }
+    *{ box-sizing:border-box; }
+    body{
+        margin:0; padding:40px 34px 70px 34px;
+        font-family:'Segoe UI','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+        background:var(--bg); color:var(--ink);
+    }
+    .wrap{ max-width:1280px; margin:0 auto; }
+
+    header{ margin-bottom:30px; }
+    .eyebrow{ font-size:.78rem; font-weight:800; letter-spacing:1.5px; color:var(--indigo); text-transform:uppercase; margin-bottom:8px; }
+    h1{ margin:0 0 8px 0; font-size:2rem; font-weight:800; letter-spacing:.2px; }
+    .sub{ color:var(--muted); font-size:.95rem; max-width:640px; line-height:1.5; margin:0; }
+
+    .stat-strip{ display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin:28px 0 40px 0; }
+    .stat{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px; }
+    .stat .n{ font-size:1.5rem; font-weight:800; }
+    .stat .l{ font-size:.76rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+
+    .domain{ margin-bottom:42px; }
+    .domain-head{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+    .domain-dot{ width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+    .domain-head h2{ margin:0; font-size:1.05rem; font-weight:800; }
+    .domain-head .count{ font-size:.78rem; color:var(--muted); font-weight:700; }
+
+    .card-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; }
+
+    .table-card{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+    .table-card .head{ padding:13px 18px; font-weight:800; font-size:.94rem; color:#fff; display:flex; align-items:center; justify-content:space-between; }
+    .table-card .head .engine{ font-size:.66rem; font-weight:700; background:rgba(255,255,255,.25); padding:2px 8px; border-radius:20px; letter-spacing:.3px; }
+    .table-card .rows{ padding:6px 0; }
+    .col-row{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:7px 18px; font-size:.82rem; border-bottom:1px solid #f1eff9; }
+    .col-row:last-child{ border-bottom:none; }
+    .col-name{ font-weight:700; color:var(--ink); white-space:nowrap; }
+    .col-name .fkref{ display:block; font-weight:600; font-size:.72rem; color:var(--indigo); margin-top:1px; }
+    .col-meta{ text-align:right; color:var(--muted); font-size:.74rem; white-space:nowrap; }
+    .badge{ display:inline-block; font-size:.62rem; font-weight:800; padding:2px 6px; border-radius:5px; margin-left:5px; letter-spacing:.3px; }
+    .badge.pk{ background:#fdf3d8; color:#8a6d00; }
+    .badge.fk{ background:#e7e3fb; color:var(--indigo); }
+    .badge.uq{ background:#e6edfb; color:var(--blue); }
+
+    .legend{ display:flex; flex-wrap:wrap; gap:18px; margin:34px 0 6px 0; padding:18px 22px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); font-size:.82rem; }
+    .legend-item{ display:flex; align-items:center; gap:7px; color:var(--ink-soft); font-weight:600; }
+
+    footer{ margin-top:36px; font-size:.8rem; color:var(--muted); text-align:center; }
+
+    @media (max-width:900px){
+        .stat-strip{ grid-template-columns:repeat(2,1fr); }
+    }
+    @media (max-width:600px){
+        body{ padding:26px 16px 50px 16px; }
+        .stat-strip{ grid-template-columns:1fr; }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <header>
+        <div class="eyebrow">SalesIQ · MariaDB</div>
+        <h1>Database Schema</h1>
+        <p class="sub">Sales Performance Reporting &amp; Forecasting — every table backing the Dashboard, Generate Report, Revenue Forecast, Targets, Alerts, and Account/Settings screens.</p>
+    </header>
+
+    <div class="stat-strip">
+        <div class="stat"><div class="n">13</div><div class="l">Tables</div></div>
+        <div class="stat"><div class="n">5</div><div class="l">Domains</div></div>
+        <div class="stat"><div class="n">14</div><div class="l">Foreign keys</div></div>
+        <div class="stat"><div class="n">InnoDB</div><div class="l">Engine</div></div>
+        <div class="stat"><div class="n">utf8mb4</div><div class="l">Charset</div></div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><span class="badge pk">PK</span> Primary key</div>
+        <div class="legend-item"><span class="badge fk">FK</span> Foreign key (arrow shows the referenced table.column)</div>
+        <div class="legend-item"><span class="badge uq">UQ</span> Unique constraint</div>
+    </div>
+
+    <!-- ============ REFERENCE DATA ============ -->
+    <section class="domain">
+        <div class="domain-head"><span class="domain-dot" style="background:var(--neutral)"></span><h2>Reference Data</h2><span class="count">2 tables</span></div>
+        <div class="card-grid">
+
+            <div class="table-card">
+                <div class="head" style="background:var(--neutral)">regions <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">name <span class="badge uq">UQ</span></span><span class="col-meta">VARCHAR(50)</span></div>
+                    <div class="col-row"><span class="col-name">created_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="head" style="background:var(--neutral)">products <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">SMALLINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">name <span class="badge uq">UQ</span></span><span class="col-meta">VARCHAR(100)</span></div>
+                    <div class="col-row"><span class="col-name">sku <span class="badge uq">UQ</span></span><span class="col-meta">VARCHAR(30)</span></div>
+                    <div class="col-row"><span class="col-name">status</span><span class="col-meta">ENUM(active,discontinued)</span></div>
+                    <div class="col-row"><span class="col-name">created_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============ USERS & ACCESS ============ -->
+    <section class="domain">
+        <div class="domain-head"><span class="domain-dot" style="background:var(--indigo)"></span><h2>Users &amp; Access</h2><span class="count">2 tables · Account / Settings overlays</span></div>
+        <div class="card-grid">
+
+            <div class="table-card">
+                <div class="head" style="background:var(--indigo)">users <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">name</span><span class="col-meta">VARCHAR(150)</span></div>
+                    <div class="col-row"><span class="col-name">email <span class="badge uq">UQ</span></span><span class="col-meta">VARCHAR(150)</span></div>
+                    <div class="col-row"><span class="col-name">password</span><span class="col-meta">VARCHAR(255)</span></div>
+                    <div class="col-row"><span class="col-name">role</span><span class="col-meta">ENUM(admin,manager,rep)</span></div>
+                    <div class="col-row"><span class="col-name">region_id <span class="badge fk">FK</span><span class="fkref">→ regions.id</span></span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">avatar_initials</span><span class="col-meta">VARCHAR(4)</span></div>
+                    <div class="col-row"><span class="col-name">employee_code</span><span class="col-meta">VARCHAR(20)</span></div>
+                    <div class="col-row"><span class="col-name">department</span><span class="col-meta">VARCHAR(80)</span></div>
+                    <div class="col-row"><span class="col-name">plan</span><span class="col-meta">VARCHAR(40)</span></div>
+                    <div class="col-row"><span class="col-name">email_verified_at</span><span class="col-meta">TIMESTAMP</span></div>
+                    <div class="col-row"><span class="col-name">remember_token</span><span class="col-meta">VARCHAR(100)</span></div>
+                    <div class="col-row"><span class="col-name">created_at / updated_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="head" style="background:var(--indigo)">user_settings <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">user_id <span class="badge fk">FK</span><span class="fkref">→ users.id</span></span><span class="col-meta">INT UNSIGNED, UQ</span></div>
+                    <div class="col-row"><span class="col-name">notifications_enabled</span><span class="col-meta">BOOLEAN</span></div>
+                    <div class="col-row"><span class="col-name">dark_mode_enabled</span><span class="col-meta">BOOLEAN</span></div>
+                    <div class="col-row"><span class="col-name">quota_reminders_enabled</span><span class="col-meta">BOOLEAN</span></div>
+                    <div class="col-row"><span class="col-name">updated_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============ REPS & SALES ============ -->
+    <section class="domain">
+        <div class="domain-head"><span class="domain-dot" style="background:var(--green)"></span><h2>Reps &amp; Sales</h2><span class="count">2 tables · the source-of-truth fact table</span></div>
+        <div class="card-grid">
+
+            <div class="table-card">
+                <div class="head" style="background:var(--green)">sales_reps <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">SMALLINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">user_id <span class="badge fk">FK</span><span class="fkref">→ users.id</span></span><span class="col-meta">INT UNSIGNED, UQ, NULL</span></div>
+                    <div class="col-row"><span class="col-name">name</span><span class="col-meta">VARCHAR(150)</span></div>
+                    <div class="col-row"><span class="col-name">region_id <span class="badge fk">FK</span><span class="fkref">→ regions.id</span></span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">hire_date</span><span class="col-meta">DATE</span></div>
+                    <div class="col-row"><span class="col-name">status</span><span class="col-meta">ENUM(active,inactive)</span></div>
+                    <div class="col-row"><span class="col-name">created_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="head" style="background:var(--green)">sales_orders <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">order_no <span class="badge uq">UQ</span></span><span class="col-meta">VARCHAR(20)</span></div>
+                    <div class="col-row"><span class="col-name">rep_id <span class="badge fk">FK</span><span class="fkref">→ sales_reps.id</span></span><span class="col-meta">SMALLINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">product_id <span class="badge fk">FK</span><span class="fkref">→ products.id</span></span><span class="col-meta">SMALLINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">quantity</span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">amount</span><span class="col-meta">DECIMAL(14,2)</span></div>
+                    <div class="col-row"><span class="col-name">status</span><span class="col-meta">ENUM(closed_won,closed_lost,pending)</span></div>
+                    <div class="col-row"><span class="col-name">order_date</span><span class="col-meta">DATE · indexed</span></div>
+                    <div class="col-row"><span class="col-name">created_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============ TARGETS & QUOTAS ============ -->
+    <section class="domain">
+        <div class="domain-head"><span class="domain-dot" style="background:var(--amber)"></span><h2>Targets &amp; Quotas</h2><span class="count">3 tables · Targets page panels</span></div>
+        <div class="card-grid">
+
+            <div class="table-card">
+                <div class="head" style="background:var(--amber)">rep_targets <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">rep_id <span class="badge fk">FK</span><span class="fkref">→ sales_reps.id</span></span><span class="col-meta">SMALLINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">period <span class="badge uq">UQ*</span></span><span class="col-meta">VARCHAR(10) e.g. 2026-Q2</span></div>
+                    <div class="col-row"><span class="col-name">target_amount</span><span class="col-meta">DECIMAL(14,2)</span></div>
+                    <div class="col-row"><span class="col-name">actual_amount</span><span class="col-meta">DECIMAL(14,2) · cached</span></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="head" style="background:var(--amber)">region_targets <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">region_id <span class="badge fk">FK</span><span class="fkref">→ regions.id</span></span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">period <span class="badge uq">UQ*</span></span><span class="col-meta">VARCHAR(10)</span></div>
+                    <div class="col-row"><span class="col-name">target_amount</span><span class="col-meta">DECIMAL(14,2)</span></div>
+                    <div class="col-row"><span class="col-name">actual_amount</span><span class="col-meta">DECIMAL(14,2) · cached</span></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="head" style="background:var(--amber)">product_targets <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">product_id <span class="badge fk">FK</span><span class="fkref">→ products.id</span></span><span class="col-meta">SMALLINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">period <span class="badge uq">UQ*</span></span><span class="col-meta">VARCHAR(10)</span></div>
+                    <div class="col-row"><span class="col-name">target_amount</span><span class="col-meta">DECIMAL(14,2)</span></div>
+                    <div class="col-row"><span class="col-name">actual_amount</span><span class="col-meta">DECIMAL(14,2) · cached</span></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============ REVENUE & FORECAST ============ -->
+    <section class="domain">
+        <div class="domain-head"><span class="domain-dot" style="background:var(--blue)"></span><h2>Revenue &amp; Forecast</h2><span class="count">2 tables · Dashboard chart / Forecast sliders</span></div>
+        <div class="card-grid">
+
+            <div class="table-card">
+                <div class="head" style="background:var(--blue)">monthly_revenue <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">SMALLINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">period_month <span class="badge uq">UQ</span></span><span class="col-meta">DATE (1st of month)</span></div>
+                    <div class="col-row"><span class="col-name">actual_amount</span><span class="col-meta">DECIMAL(14,2) NULL</span></div>
+                    <div class="col-row"><span class="col-name">forecast_amount</span><span class="col-meta">DECIMAL(14,2)</span></div>
+                    <div class="col-row"><span class="col-name">is_projected</span><span class="col-meta">BOOLEAN</span></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="head" style="background:var(--blue)">forecast_assumptions <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">period <span class="badge uq">UQ</span></span><span class="col-meta">VARCHAR(10)</span></div>
+                    <div class="col-row"><span class="col-name">growth_rate_pct</span><span class="col-meta">DECIMAL(5,2)</span></div>
+                    <div class="col-row"><span class="col-name">deal_close_rate_pct</span><span class="col-meta">DECIMAL(5,2)</span></div>
+                    <div class="col-row"><span class="col-name">seasonality_factor_pct</span><span class="col-meta">DECIMAL(5,2)</span></div>
+                    <div class="col-row"><span class="col-name">updated_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ============ ALERTS ============ -->
+    <section class="domain">
+        <div class="domain-head"><span class="domain-dot" style="background:var(--red)"></span><h2>Alerts</h2><span class="count">2 tables · Alerts page + settings panel</span></div>
+        <div class="card-grid">
+
+            <div class="table-card">
+                <div class="head" style="background:var(--red)">alerts <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">INT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">category</span><span class="col-meta">ENUM(critical,warning,positive,info) · indexed</span></div>
+                    <div class="col-row"><span class="col-name">title</span><span class="col-meta">VARCHAR(150)</span></div>
+                    <div class="col-row"><span class="col-name">description</span><span class="col-meta">TEXT</span></div>
+                    <div class="col-row"><span class="col-name">link_label / link_url</span><span class="col-meta">VARCHAR</span></div>
+                    <div class="col-row"><span class="col-name">related_type / related_id</span><span class="col-meta">ENUM + INT · no FK (polymorphic)</span></div>
+                    <div class="col-row"><span class="col-name">is_read</span><span class="col-meta">BOOLEAN · indexed</span></div>
+                    <div class="col-row"><span class="col-name">created_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+            <div class="table-card">
+                <div class="head" style="background:var(--red)">alert_settings <span class="engine">InnoDB</span></div>
+                <div class="rows">
+                    <div class="col-row"><span class="col-name">id <span class="badge pk">PK</span></span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">target_breach_threshold_pct</span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">inventory_trigger_enabled</span><span class="col-meta">BOOLEAN</span></div>
+                    <div class="col-row"><span class="col-name">inventory_trigger_growth_pct</span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">inventory_trigger_months</span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">forecast_deviation_enabled</span><span class="col-meta">BOOLEAN</span></div>
+                    <div class="col-row"><span class="col-name">forecast_deviation_pct</span><span class="col-meta">TINYINT UNSIGNED</span></div>
+                    <div class="col-row"><span class="col-name">updated_at</span><span class="col-meta">TIMESTAMP</span></div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <footer>UQ* = unique constraint is composite (e.g. rep_id + period together, not the column alone) &nbsp;·&nbsp; Generated from schema.sql</footer>
+
+</div>
+</body>
+</html>

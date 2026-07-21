@@ -1,34 +1,20 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
 use App\Modules\SalesPerformanceReporting\Controllers\AlertsController;
 use App\Modules\SalesPerformanceReporting\Controllers\DashboardController;
 use App\Modules\SalesPerformanceReporting\Controllers\GenerateReportController;
 use App\Modules\SalesPerformanceReporting\Controllers\RevenueForecastController;
 use App\Modules\SalesPerformanceReporting\Controllers\TargetsController;
+use Illuminate\Support\Facades\Route;
 
-
-Route::get('/', function () {
-    return redirect()->route('dashboard');
-});
-
-require __DIR__.'/dashboard.php';
-require __DIR__.'/ascm.php';
-require __DIR__.'/communication-logs.php';
-require __DIR__.'/customer-relationship-management.php';
-require __DIR__.'/order-history.php';
-require __DIR__.'/purchase-behavior.php';
-require __DIR__.'/sales-order-management.php';
-require __DIR__.'/sales-performance-reporting.php';
-
-Route::get('/account', fn () => view('coming-soon', ['pageTitle' => 'Account']))->name('account');
-Route::get('/after-sales-support', fn () => redirect()->route('ascm.index'))->name('after-sales-support');
-Route::get('/sales-order', fn () => redirect()->route('sales-order-management.index'))->name('sales-order');
-Route::get('/sales-report', fn () => redirect()->route('sales-performance-reporting.dashboard'))->name('sales-report');
-
-
-
+/*
+ * All routes for the Sales Performance Reporting sub-module live under
+ * /sales-performance-reporting/*, with every route name prefixed
+ * "sales-performance-reporting." to avoid collisions with the other SCSM
+ * sub-modules sharing this monorepo's single route-name registry
+ * (Sales Order Management, Customer Relationship Management,
+ * After-Sales Support and Customer Service Management).
+ */
 Route::prefix('sales-performance-reporting')
     ->name('sales-performance-reporting.')
     ->group(function () {
