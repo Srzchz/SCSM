@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 
-//helo helo
+//sdadasdsadasdasdsdas
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
