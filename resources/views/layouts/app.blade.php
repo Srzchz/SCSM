@@ -47,24 +47,7 @@
 
     <script src="{{ asset('js/curema-storage.js') }}"></script>
 
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            max-width: 100vw;
-        }
-        body { font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #DAD7EF; border-radius: 999px; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        [x-cloak] { display: none !important; }
-
-        html.curema-dark { filter: invert(1) hue-rotate(180deg); }
-        html.curema-dark img,
-        html.curema-dark canvas { filter: invert(1) hue-rotate(180deg); }
-    </style>
+    
     @stack('styles')
 </head>
 <body class="bg-curema-bg text-curema-ink antialiased"
@@ -77,32 +60,7 @@
             <span class="text-xl font-extrabold tracking-tight">SCSM</span>
         </a>
 
-        <nav class="flex-1 mt-4 space-y-1">
-            @php
-                $nav = [
-                    ['icon' => '▦', 'label' => 'Dashboard', 'route' => 'dashboard'],
-                    ['icon' => '◇', 'label' => 'Customers', 'route' => 'customers.index'],
-                    ['icon' => '◈', 'label' => 'Purchase Behavior', 'route' => 'purchase-behavior'],
-                    ['icon' => '▤', 'label' => 'Orders', 'route' => 'orders.index'],
-                    ['icon' => '◔', 'label' => 'Communication Logs', 'route' => 'communication-logs'],
-                    ['icon' => '▥', 'label' => 'Sales Order', 'route' => 'sales-order'],
-                    ['icon' => '◎', 'label' => 'After-Sales Support', 'route' => 'after-sales-support'],
-                    ['icon' => '▮', 'label' => 'Sales Report', 'route' => 'sales-report'],
-                ];
-                $active = $active ?? 'Dashboard';
-            @endphp
-
-            @foreach ($nav as $item)
-                <a href="{{ route($item['route']) }}"
-                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition
-                          {{ $active === $item['label']
-                                ? 'bg-curema-purplesoft text-curema-purple font-semibold'
-                                : 'text-curema-ink/70 hover:bg-curema-bg' }}">
-                    <span class="w-5 text-center">{{ $item['icon'] }}</span>
-                    {{ $item['label'] }}
-                </a>
-            @endforeach
-        </nav>
+       
 
         <div class="pt-4 mt-4 border-t border-curema-border space-y-1">
             <a href="{{ route('account') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-curema-ink/70 hover:bg-curema-bg">
