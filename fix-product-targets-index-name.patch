@@ -1,0 +1,11 @@
+--- a/database/migrations/2024_01_01_000009_create_sales_performance_reporting_product_targets_table.php
++++ b/database/migrations/2024_01_01_000009_create_sales_performance_reporting_product_targets_table.php
+@@ -17,7 +17,7 @@
+             $table->decimal('actual_amount', 14, 2)->default(0);
+ 
+             $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
+-            $table->unique(['product_id', 'period']);
++            $table->unique(['product_id', 'period'], 'sprt_product_targets_product_period_unique');
+         });
+     }
+ 

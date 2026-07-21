@@ -33,7 +33,8 @@ return new class extends Migration
 
             $table->enum('status', ['submitted', 'under_review', 'approved', 'rejected'])->default('submitted');
 
-            $table->foreignId('decision_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('decision_by')->nullable();
+            $table->foreign('decision_by')->references('id')->on('users')->nullOnDelete();
             $table->timestamp('decision_at')->nullable();
 
             $table->timestamps();

@@ -18,7 +18,8 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('case_id')->constrained('ascm_cases')->cascadeOnDelete();
-            $table->foreignId('author_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('author_id')->nullable();
+            $table->foreign('author_id')->references('id')->on('users')->nullOnDelete();
 
             $table->enum('entry_type', [
                 'customer_note',

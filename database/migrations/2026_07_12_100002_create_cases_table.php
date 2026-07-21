@@ -31,7 +31,8 @@ return new class extends Migration
             $table->enum('priority', ['low', 'medium', 'high', 'critical'])->default('medium');
             $table->enum('status', ['pending', 'open', 'resolved', 'closed'])->default('pending');
 
-            $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('assigned_to')->nullable();
+            $table->foreign('assigned_to')->references('id')->on('users')->nullOnDelete();
 
             $table->timestamp('sla_due_at')->nullable();
             $table->timestamp('resolved_at')->nullable();

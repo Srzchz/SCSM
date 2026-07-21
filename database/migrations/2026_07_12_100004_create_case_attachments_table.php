@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('case_id')->constrained('ascm_cases')->cascadeOnDelete();
-            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('uploaded_by')->nullable();
+            $table->foreign('uploaded_by')->references('id')->on('users')->nullOnDelete();
 
             $table->string('file_name');
             $table->string('file_path');

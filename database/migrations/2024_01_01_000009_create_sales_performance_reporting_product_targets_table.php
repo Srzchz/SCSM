@@ -11,13 +11,13 @@ return new class extends Migration
     {
         Schema::create('sales_performance_reporting_product_targets', function (Blueprint $table) {
             $table->increments('id');
-            $table->unsignedSmallInteger('product_id');
+            $table->unsignedBigInteger('product_id');
             $table->string('period', 10);
             $table->decimal('target_amount', 14, 2);
             $table->decimal('actual_amount', 14, 2)->default(0);
 
             $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
-            $table->unique(['product_id', 'period']);
+            $table->unique(['product_id', 'period'], 'sprt_product_targets_product_period_unique');
         });
     }
 

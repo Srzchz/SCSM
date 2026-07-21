@@ -16,7 +16,8 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('warranty_claim_id')->constrained('ascm_warranty_claims')->cascadeOnDelete();
-            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('uploaded_by')->nullable();
+            $table->foreign('uploaded_by')->references('id')->on('users')->nullOnDelete();
 
             $table->string('file_name');
             $table->string('file_path');

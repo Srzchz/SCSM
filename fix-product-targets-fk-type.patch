@@ -1,0 +1,11 @@
+--- a/database/migrations/2024_01_01_000009_create_sales_performance_reporting_product_targets_table.php
++++ b/database/migrations/2024_01_01_000009_create_sales_performance_reporting_product_targets_table.php
+@@ -11,7 +11,7 @@
+     {
+         Schema::create('sales_performance_reporting_product_targets', function (Blueprint $table) {
+             $table->increments('id');
+-            $table->unsignedSmallInteger('product_id');
++            $table->unsignedBigInteger('product_id');
+             $table->string('period', 10);
+             $table->decimal('target_amount', 14, 2);
+             $table->decimal('actual_amount', 14, 2)->default(0);

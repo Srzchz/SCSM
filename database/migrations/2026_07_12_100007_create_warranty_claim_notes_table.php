@@ -16,7 +16,8 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('warranty_claim_id')->constrained('ascm_warranty_claims')->cascadeOnDelete();
-            $table->foreignId('author_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('author_id')->nullable();
+            $table->foreign('author_id')->references('id')->on('users')->nullOnDelete();
 
             $table->enum('note_type', ['decision', 'service_plan', 'general'])->default('general');
             $table->text('body');

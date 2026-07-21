@@ -19,7 +19,8 @@ return new class extends Migration
 
             $table->foreignId('warranty_claim_id')->constrained('ascm_warranty_claims')->cascadeOnDelete();
             $table->enum('status', ['scheduled', 'in_progress', 'completed', 'cancelled'])->default('scheduled');
-            $table->foreignId('technician_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('technician_id')->nullable();
+            $table->foreign('technician_id')->references('id')->on('users')->nullOnDelete();
 
             $table->timestamp('scheduled_at')->nullable();
             $table->timestamp('completed_at')->nullable();
