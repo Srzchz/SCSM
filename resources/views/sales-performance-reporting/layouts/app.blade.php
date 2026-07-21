@@ -371,15 +371,15 @@
             </nav>
 
             <nav class="nav-secondary">
-                <a href="#" class="nav-item">
+                <a href="{{ route('sales-order') }}" class="nav-item">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="2"/><path d="M4 6l8 6 8-6" stroke="currentColor" stroke-width="2"/></svg>
                     Sales Order
                 </a>
-                <a href="#" class="nav-item">
+                <a href="{{ route('customers.index') }}" class="nav-item">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 5a2 2 0 012-2h2l2 5-2 1a11 11 0 006 6l1-2 5 2v2a2 2 0 01-2 2A16 16 0 013 5z" stroke="currentColor" stroke-width="1.6"/></svg>
                     Customer Relation
                 </a>
-                <a href="#" class="nav-item">
+                <a href="{{ route('after-sales-support') }}" class="nav-item">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" stroke-width="2"/></svg>
                     After-Sales Support
                 </a>
