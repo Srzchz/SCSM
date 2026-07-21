@@ -143,7 +143,11 @@ class CustomerController extends Controller
                     'email' => $c->email,
                     'orders' => $c->orders_count,
                     'spent' => '₱' . number_format($totalSpent, 2),
-                    'clv' => '₱' . number_format($c->insight->clv ?? 0, 2),
+                    // CLV = lifetime spend to date. Previously read from
+                    // CustomerInsight.clv, which nothing ever populates —
+                    // that always showed ₱0.00. Matches the definition
+                    // used in DashboardController::loadOverview().
+                    'clv' => '₱' . number_format($totalSpent, 2),
                     'last' => $lastOrderDate?->format('M j, Y') ?? '—',
                     'segment' => Customer::computeSegment($c->orders_count, $totalSpent, $lastOrderDate),
                 ];
@@ -180,7 +184,10 @@ class CustomerController extends Controller
             'total_spent' => '₱' . number_format($realTotalSpent, 2),
             'avg_order_value' => '₱' . number_format($realAvgOrderValue, 0),
             'last_ordered' => $lastOrderDate?->format('M j, Y') ?? '—',
-            'clv' => '₱' . number_format($c->insight->clv ?? 0, 2),
+            // CLV = lifetime spend to date, same definition as
+            // allCustomersTable() and DashboardController::loadOverview().
+            // Previously read the always-empty CustomerInsight.clv column.
+            'clv' => '₱' . number_format($realTotalSpent, 2),
 
             // quantity/price-per-line have no home on the canonical orders
             // header row (no order_items table was provided) — dropped from

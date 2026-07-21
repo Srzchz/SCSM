@@ -8,44 +8,13 @@
     column of smaller insight cards. Rebuilt with this project's existing
     CSS custom properties and plain-CSS component classes instead of
     Tailwind/Alpine, to match cases.blade.php / warranty.blade.php.
+
+    Stat cards, segment donut, growth chart, and Top Customers now come
+    from DashboardController::loadOverview() (real DB data). The right-hand
+    "Customer Insight" / "Upcoming Follow-ups" / "Recent Activities" cards
+    remain static demo content — no backing model/controller data exists
+    for those yet.
 --}}
-
-@php
-    $ovStats = [
-        ['label' => 'Total Customers', 'value' => '4,856', 'change' => '+12.4%', 'tint' => 'tint-purple'],
-        ['label' => 'Repeat Customers', 'value' => '1,674', 'change' => '+10.7%', 'tint' => 'tint-green'],
-        ['label' => 'CLV (Avg)', 'value' => '$236.78', 'change' => '+9.3%', 'tint' => 'tint-blue'],
-        ['label' => 'Retention Rate', 'value' => '41.2%', 'change' => '+6.8%', 'tint' => 'tint-coral'],
-    ];
-
-    $ovSegments = [
-        ['label' => 'VIP', 'value' => 864, 'pct' => '17.7%', 'color' => '#AD9EFF'],
-        ['label' => 'Repeat Buyer', 'value' => 1302, 'pct' => '26.7%', 'color' => '#9CFF9F'],
-        ['label' => 'New Customers', 'value' => 1172, 'pct' => '24%', 'color' => '#7ED8FF'],
-        ['label' => 'At Risk', 'value' => 533, 'pct' => '11.5%', 'color' => '#FF9A91'],
-        ['label' => 'Inactive', 'value' => 985, 'pct' => '20.2%', 'color' => '#B0B4EC'],
-    ];
-
-    $ovCustomers = [
-        ['name' => 'Amara Reyes', 'segment' => 'VIP', 'orders' => 28, 'ltv' => '$4,120.00', 'last' => '2026-07-08', 'status' => 'Active'],
-        ['name' => 'Northwind Co.', 'segment' => 'Repeat Buyer', 'orders' => 19, 'ltv' => '$2,860.50', 'last' => '2026-07-06', 'status' => 'Active'],
-        ['name' => 'Contoso Ltd', 'segment' => 'VIP', 'orders' => 24, 'ltv' => '$3,975.00', 'last' => '2026-07-05', 'status' => 'Active'],
-        ['name' => 'Jonas Villareal', 'segment' => 'New Customer', 'orders' => 2, 'ltv' => '$210.00', 'last' => '2026-07-04', 'status' => 'Active'],
-        ['name' => 'Example Co', 'segment' => 'At Risk', 'orders' => 11, 'ltv' => '$1,340.00', 'last' => '2026-05-18', 'status' => 'At Risk'],
-    ];
-
-    $ovFollowups = [
-        ['name' => 'Amara Reyes', 'note' => 'Renewal call re: annual plan', 'when' => 'Today, 3:00 PM'],
-        ['name' => 'Northwind Co.', 'note' => 'Send Q3 order recap', 'when' => 'Tomorrow, 10:00 AM'],
-        ['name' => 'Jonas Villareal', 'note' => 'Welcome check-in', 'when' => 'Jul 13, 9:30 AM'],
-    ];
-
-    $ovActivities = [
-        ['title' => 'Order placed', 'meta' => 'Contoso Ltd • 2h ago', 'text' => 'ORD-9931 for 3 items, $412.00 total.'],
-        ['title' => 'Case resolved', 'meta' => 'Support • Yesterday', 'text' => 'CS-2177 marked resolved by the warranty team.'],
-        ['title' => 'Segment changed', 'meta' => 'Example Co • 2d ago', 'text' => 'Moved from Repeat Buyer to At Risk after 60 days inactive.'],
-    ];
-@endphp
 
 <div class="overview-wrapper">
     <div class="overview-grid">
@@ -72,7 +41,9 @@
                         <div>
                             <p class="stat-card-label">{{ $stat['label'] }}</p>
                             <p class="stat-card-value">{{ $stat['value'] }}</p>
-                            <p class="stat-card-change">&uarr; {{ $stat['change'] }}</p>
+                            @if (!empty($stat['change']))
+                                <p class="stat-card-change">&uarr; {{ $stat['change'] }}</p>
+                            @endif
                         </div>
                     </div>
                 @endforeach
@@ -83,15 +54,13 @@
                     <div class="card-header chart-card-header">
                         <h2 class="card-title">Customer Growth</h2>
                         <select class="input input-compact" aria-label="Growth chart range">
-                            <option>Last 30 days</option>
-                            <option>Last 90 days</option>
-                            <option>This year</option>
+                            <option>Last 8 weeks</option>
                         </select>
                     </div>
                     <div class="chart-canvas-wrap">
                         <canvas id="ov-growth-chart"
-                                data-labels="{{ json_encode(['May 10', 'Jun 9', 'Jul 9', 'Aug 8']) }}"
-                                data-values="{{ json_encode([20, 60, 130, 220]) }}"></canvas>
+                                data-labels="{{ json_encode($ovGrowthLabels) }}"
+                                data-values="{{ json_encode($ovGrowthValues) }}"></canvas>
                     </div>
                 </div>
 
@@ -107,7 +76,7 @@
                                     data-values="{{ json_encode(array_column($ovSegments, 'value')) }}"
                                     data-colors="{{ json_encode(array_column($ovSegments, 'color')) }}"></canvas>
                             <div class="segment-donut-center">
-                                <span class="segment-donut-total">4,856</span>
+                                <span class="segment-donut-total">{{ number_format(array_sum(array_column($ovSegments, 'value'))) }}</span>
                                 <span class="segment-donut-label">Total Customers</span>
                             </div>
                         </div>
@@ -148,7 +117,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($ovCustomers as $c)
+                            @forelse ($ovCustomers as $c)
                                 <tr>
                                     <td>{{ $c['name'] }}</td>
                                     <td>{{ $c['segment'] }}</td>
@@ -159,11 +128,13 @@
                                         @if ($c['status'] === 'Active')
                                             <span class="pill pill-green">Active</span>
                                         @else
-                                            <span class="pill pill-yellow">At Risk</span>
+                                            <span class="pill pill-yellow">Inactive</span>
                                         @endif
                                     </td>
                                 </tr>
-                            @endforeach
+                            @empty
+                                <tr><td colspan="6">No customers yet.</td></tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -172,6 +143,8 @@
         </div>
 
         <div class="overview-side">
+            {{-- Static demo content below — no CustomerInsight/FollowUp/Activity
+                 data source has been wired up for these yet. --}}
             <div class="module-card side-card">
                 <h2 class="card-title">Customer Insight</h2>
                 <p class="side-card-hint">Repeat Buyer is your fastest-growing segment this month.</p>
@@ -186,8 +159,8 @@
                     <span class="insight-bar-pct">+9%</span>
                 </div>
                 <div class="insight-bar-row">
-                    <span class="insight-bar-label">At Risk</span>
-                    <div class="insight-bar-track"><div class="insight-bar-fill" style="width:22%;background:#FF9A91"></div></div>
+                    <span class="insight-bar-label">Inactive</span>
+                    <div class="insight-bar-track"><div class="insight-bar-fill" style="width:22%;background:#B0B4EC"></div></div>
                     <span class="insight-bar-pct">-4%</span>
                 </div>
             </div>
@@ -195,29 +168,24 @@
             <div class="module-card side-card">
                 <h2 class="card-title">Upcoming Follow-ups</h2>
                 <ul class="followup-list">
-                    @foreach ($ovFollowups as $f)
-                        <li>
-                            <span class="followup-name">{{ $f['name'] }}</span>
-                            <span class="followup-note">{{ $f['note'] }}</span>
-                            <span class="followup-when">{{ $f['when'] }}</span>
-                        </li>
-                    @endforeach
+                    <li>
+                        <span class="followup-name">—</span>
+                        <span class="followup-note">Not wired to real data yet</span>
+                        <span class="followup-when"></span>
+                    </li>
                 </ul>
             </div>
 
             <div class="module-card side-card">
                 <h2 class="card-title">Recent Activities</h2>
                 <div class="timeline timeline-compact">
-                    @foreach ($ovActivities as $a)
-                        <div class="timeline-item">
-                            <div class="timeline-dot"></div>
-                            <div class="timeline-body">
-                                <div class="timeline-title">{{ $a['title'] }}</div>
-                                <div class="timeline-meta">{{ $a['meta'] }}</div>
-                                <div class="timeline-text">{{ $a['text'] }}</div>
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-body">
+                            <div class="timeline-title">—</div>
+                            <div class="timeline-meta">Not wired to real data yet</div>
                         </div>
-                    @endforeach
+                    </div>
                 </div>
             </div>
         </div>
@@ -362,7 +330,7 @@
                     responsive: true,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { grid: { color: '#EFEDF9' }, ticks: { stepSize: 100 } },
+                        y: { grid: { color: '#EFEDF9' }, ticks: { precision: 0 } },
                         x: { grid: { display: false } }
                     }
                 }
@@ -399,10 +367,6 @@
                     resizeTimeout = setTimeout(resizeCharts, 150);
                 });
 
-                // This SPA pre-renders every section and toggles [hidden] on the
-                // parent <section>. Chart.js can't size a canvas that was hidden
-                // when it was created, so re-run resize whenever Overview becomes
-                // visible again (covers app.js implementations we don't control).
                 const overviewSection = document.getElementById('overview');
                 if (overviewSection && 'MutationObserver' in window) {
                     const observer = new MutationObserver(() => {

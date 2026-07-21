@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
 use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
 use Illuminate\Http\Request;
@@ -15,17 +16,13 @@ class DashboardController extends Controller
      * data every section needs has to be gathered here in one place and
      * passed down together, rather than one controller per page.
      *
-     * Cases and Warranty are wired to real data. Overview, Sales Order,
-     * Customer Relation, Sales Report, Account, and Settings still render
-     * their static placeholder/demo content until the same pattern used
-     * here is repeated for them.
+     * Cases, Warranty, and now Overview are wired to real data. Sales
+     * Order, Customer Relation, Sales Report, Account, and Settings still
+     * render their static placeholder/demo content until the same pattern
+     * used here is repeated for them.
      */
     public function index(Request $request)
     {
-        // Lets write actions (see CaseController/WarrantyController) redirect
-        // back to ?section=cases (or ?section=warranty) so the page reloads
-        // onto the tab you were just working in instead of defaulting back
-        // to Overview.
         $default = $request->query('section', 'overview');
 
         $sections = [
@@ -41,6 +38,7 @@ class DashboardController extends Controller
 
         [$cases, $caseStats, $caseDetails, $caseFilters] = $this->loadCases($request);
         [$warrantyClaims, $warrantyStats, $warrantyDetails, $warrantyFilters] = $this->loadWarrantyClaims($request);
+        [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues] = $this->loadOverview();
 
         return view('spa', compact(
             'sections',
@@ -53,7 +51,133 @@ class DashboardController extends Controller
             'warrantyStats',
             'warrantyDetails',
             'warrantyFilters',
+            'ovStats',
+            'ovSegments',
+            'ovCustomers',
+            'ovGrowthLabels',
+            'ovGrowthValues',
         ));
+    }
+
+    /**
+     * Real CRM Overview data, replacing the previously hardcoded arrays in
+     * sections/overview.blade.php.
+     *
+     * Definitions used (none of these existed in the codebase before —
+     * chosen deliberately, flag for review if the business wants something
+     * different):
+     *   - CLV = lifetime spend to date (sum of grand_total across a
+     *     customer's orders). Matches CustomerController's per-customer
+     *     total_spent, so this fixes those pages too (they were reading
+     *     the always-empty CustomerInsight.clv column).
+     *   - Retention Rate = % of all customers with 2+ orders.
+     *   - Customer Growth = new customers per calendar week, last 8 weeks,
+     *     grouped by Customer.created_at.
+     *   - "At Risk" segment removed — Customer::computeSegment() never
+     *     produced it; the old Overview view showed it as a fabricated
+     *     demo bucket only.
+     *   - Stat-card "% change" subtext: only computed for Total Customers
+     *     and Repeat Customers (30-day-vs-prior-30-day counts), since
+     *     those have an unambiguous definition. Left blank for CLV and
+     *     Retention Rate rather than inventing a comparison basis.
+     */
+    private function loadOverview(): array
+    {
+        $customers = Customer::withCount('orders')
+            ->withSum('orders', 'grand_total')
+            ->withMax('orders', 'created_at')
+            ->get();
+
+        $totalCustomers = $customers->count();
+
+        $enriched = $customers->map(function ($c) {
+            $totalOrders = $c->orders_count;
+            $totalSpent = (float) ($c->orders_sum_grand_total ?? 0);
+            $lastOrderDate = $c->orders_max_created_at ? \Carbon\Carbon::parse($c->orders_max_created_at) : null;
+
+            return (object) [
+                'name' => $c->full_name,
+                'orders' => $totalOrders,
+                'spent' => $totalSpent,
+                'lastOrderDate' => $lastOrderDate,
+                'segment' => Customer::computeSegment($totalOrders, $totalSpent, $lastOrderDate),
+            ];
+        });
+
+        $repeatCustomers = $enriched->filter(fn ($c) => $c->orders >= 2);
+        $customersWithOrders = $enriched->filter(fn ($c) => $c->orders > 0);
+        $avgClv = $customersWithOrders->isNotEmpty() ? $customersWithOrders->avg('spent') : 0;
+
+        $retentionRate = $totalCustomers > 0
+            ? round(($repeatCustomers->count() / $totalCustomers) * 100, 1)
+            : 0;
+
+        // computeSegment() returns 'New Customer' (singular); the donut
+        // legend uses 'New Customers' (plural) — aligned here rather than
+        // changing the shared segment method's public return value.
+        $segmentLabelMap = ['New Customer' => 'New Customers'];
+        $segmentColors = [
+            'VIP' => '#AD9EFF',
+            'Repeat Buyer' => '#9CFF9F',
+            'New Customers' => '#7ED8FF',
+            'Inactive' => '#B0B4EC',
+        ];
+        $segmentCounts = array_fill_keys(array_keys($segmentColors), 0);
+
+        foreach ($enriched as $c) {
+            $label = $segmentLabelMap[$c->segment] ?? $c->segment;
+            if (array_key_exists($label, $segmentCounts)) {
+                $segmentCounts[$label]++;
+            }
+        }
+
+        $ovSegments = collect($segmentCounts)->map(fn ($count, $label) => [
+            'label' => $label,
+            'value' => $count,
+            'pct' => $totalCustomers > 0 ? round(($count / $totalCustomers) * 100, 1) . '%' : '0%',
+            'color' => $segmentColors[$label],
+        ])->values()->all();
+
+        $ovCustomers = $enriched->sortByDesc('spent')->take(5)->map(fn ($c) => [
+            'name' => $c->name,
+            'segment' => $segmentLabelMap[$c->segment] ?? $c->segment,
+            'orders' => $c->orders,
+            'ltv' => '₱' . number_format($c->spent, 2),
+            'last' => $c->lastOrderDate?->format('Y-m-d') ?? '—',
+            'status' => $c->segment === 'Inactive' ? 'Inactive' : 'Active',
+        ])->values()->all();
+
+        $ovGrowthLabels = [];
+        $ovGrowthValues = [];
+        for ($i = 7; $i >= 0; $i--) {
+            $weekStart = now()->subWeeks($i)->startOfWeek();
+            $weekEnd = (clone $weekStart)->endOfWeek();
+            $ovGrowthLabels[] = $weekStart->format('M j');
+            $ovGrowthValues[] = Customer::whereBetween('created_at', [$weekStart, $weekEnd])->count();
+        }
+
+        $periodChange = function (int $current, int $previous): string {
+            if ($previous === 0) {
+                return $current > 0 ? '+100%' : '+0%';
+            }
+            $pct = (($current - $previous) / $previous) * 100;
+
+            return ($pct >= 0 ? '+' : '') . round($pct, 1) . '%';
+        };
+
+        $customersLast30 = Customer::where('created_at', '>=', now()->subDays(30))->count();
+        $customersPrev30 = Customer::whereBetween('created_at', [now()->subDays(60), now()->subDays(30)])->count();
+        $repeatLast30 = $enriched->filter(fn ($c) => $c->orders >= 2 && $c->lastOrderDate && $c->lastOrderDate->gte(now()->subDays(30)))->count();
+        $repeatPrev30 = $enriched->filter(fn ($c) => $c->orders >= 2 && $c->lastOrderDate && $c->lastOrderDate->between(now()->subDays(60), now()->subDays(30)))->count();
+
+        $ovStats = [
+            ['label' => 'Total Customers', 'value' => number_format($totalCustomers), 'change' => $periodChange($customersLast30, $customersPrev30), 'tint' => 'tint-purple'],
+            ['label' => 'Repeat Customers', 'value' => number_format($repeatCustomers->count()), 'change' => $periodChange($repeatLast30, $repeatPrev30), 'tint' => 'tint-green'],
+            ['label' => 'CLV (Avg)', 'value' => '₱' . number_format($avgClv, 2), 'change' => null, 'tint' => 'tint-blue'],
+            ['label' => 'Retention Rate', 'value' => $retentionRate . '%', 'change' => null, 'tint' => 'tint-coral'],
+        ];
+
+        return [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues];
     }
 
     /**
@@ -119,18 +243,9 @@ class DashboardController extends Controller
         ])
             ->latest()
             ->paginate(10, ['*'], 'cases_page')
-            // Every page link (and the redirect URLs built in CaseController)
-            // needs to carry ?section=cases plus whatever filters are active,
-            // or the next page load falls back to the Overview tab and loses
-            // the filter. ->fragment() also keeps the #cases hash the SPA
-            // shell uses to track the active tab.
             ->appends(array_filter(array_merge(['section' => 'cases'], $this->prefixKeys($filters, 'cases_')), fn ($v) => $v !== null && $v !== ''))
             ->fragment('cases');
 
-        // Pre-shaped per-case timeline/attachments/history so the Blade
-        // view can hand it straight to the off-canvas panel as one JSON
-        // blob per row, instead of running relationship queries inline in
-        // the template. Only shaped for the current page's rows.
         $caseDetails = collect($cases->items())->mapWithKeys(function (SupportCase $case) {
             return [$case->id => [
                 'notes' => $case->notes->map(fn ($note) => [
@@ -259,11 +374,6 @@ class DashboardController extends Controller
         return [$warrantyClaims, $warrantyStats, $warrantyDetails, $filters];
     }
 
-    /**
-     * ['status' => 'Open', ...] -> ['cases_status' => 'Open', ...], so the
-     * filter array (used to repopulate the form inputs) can double as the
-     * ?cases_xxx=... query params appended to every pagination link.
-     */
     private function prefixKeys(array $filters, string $prefix): array
     {
         $prefixed = [];
