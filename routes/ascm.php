@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Route;
 // existing route('ascm.dashboard') calls in cases.blade.php/warranty.blade.php
 // (used for the filter forms' action= target) keep working unchanged.
 Route::get('/', function () {
-    return redirect()->route('dashboard');
-})->name('ascm.dashboard');
+    return view('ascm.cases');
+})->name('index');
 
 Route::prefix('ascm')->name('ascm.')->group(function () {
     Route::prefix('cases')->name('cases.')->group(function () {
