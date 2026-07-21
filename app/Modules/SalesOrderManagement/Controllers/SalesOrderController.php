@@ -55,8 +55,18 @@ class SalesOrderController extends Controller
     public function bootstrap()
     {
         return response()->json([
-            'products'     => Product::all(['product_id', 'name', 'category', 'unit_price']),
-            'customers'    => Customer::all(['customer_id', 'name', 'segment']),
+            'products'     => Product::all(['id', 'name', 'category', 'unit_price'])
+                                ->map(fn ($p) => [
+                                    'product_id' => $p->id,
+                                    'name'       => $p->name,
+                                    'category'   => $p->category,
+                                    'unit_price' => (float) $p->unit_price,
+                                ]),
+            'customers'    => Customer::all(['customer_id', 'first_name', 'last_name'])
+                                ->map(fn ($c) => [
+                                    'customer_id' => $c->customer_id,
+                                    'name'        => $c->full_name,
+                                ]),
             'pricingRules' => PricingRule::orderByDesc('created_at')->get()
                                 ->map(fn ($r) => $this->transformPricingRule($r)),
             'taxRegions'   => TaxRegion::orderByDesc('is_default')->orderBy('country')->get()
@@ -85,7 +95,7 @@ class SalesOrderController extends Controller
             'valid_until'         => 'nullable|date',
             'tax_region_id'       => 'nullable|integer|exists:tax_regions,id',
             'items'                => 'required|array|min:1',
-            'items.*.product_id'   => 'required|integer|exists:products,product_id',
+            'items.*.product_id'   => 'required|integer|exists:products,id',
             'items.*.quantity'     => 'required|integer|min:1',
             'items.*.discount_percent' => 'nullable|numeric|min:0|max:100',
         ]);
@@ -319,7 +329,7 @@ class SalesOrderController extends Controller
             $discountTotal += $lineDisc;
 
             $lines[] = [
-                'product_id'       => $product->product_id,
+                'product_id'       => $product->id,
                 'quantity'         => $qty,
                 'unit_price'       => $product->unit_price,
                 'discount_percent' => $pct,
