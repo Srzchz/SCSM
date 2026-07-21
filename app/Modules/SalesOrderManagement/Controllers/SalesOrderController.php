@@ -55,23 +55,29 @@ class SalesOrderController extends Controller
     public function bootstrap()
     {
         return response()->json([
-            'products'     => Product::all(['product_id', 'name', 'category', 'unit_price']),
-            'customers'    => Customer::all(['customer_id', 'name', 'segment']),
+            'products' => Product::where('is_active', true)->get()->map(fn ($p) => [
+                'product_id' => $p->id,
+                'name' => $p->name,
+                'category' => $p->category,
+                'unit_price' => (float) ($p->unit_price ?? $p->price),
+            ]),
+            'customers' => Customer::with('insight')->get()->map(fn ($c) => [
+                'customer_id' => $c->customer_id,
+                'name' => $c->full_name,
+                'segment' => optional($c->insight)->customer_type ?? 'New Customer',
+            ]),
             'pricingRules' => PricingRule::orderByDesc('created_at')->get()
                                 ->map(fn ($r) => $this->transformPricingRule($r)),
-            'taxRegions'   => TaxRegion::orderByDesc('is_default')->orderBy('country')->get()
+            'taxRegions' => TaxRegion::orderByDesc('is_default')->orderBy('country')->get()
                                 ->map(fn ($t) => $this->transformTaxRegion($t)),
-            'quotations'   => SalesQuotation::with(['items.product', 'customer', 'taxRegion'])
-                                ->orderBy('quotation_id')
-                                ->get()
+            'quotations' => SalesQuotation::with(['items.product', 'customer.insight', 'taxRegion'])
+                                ->orderBy('quotation_id')->get()
                                 ->map(fn ($q) => $this->transformQuotation($q)),
-            'orders'       => SalesOrder::with(['items.product', 'customer', 'invoices', 'taxRegion'])
-                                ->orderBy('sales_order_id')
-                                ->get()
-                                ->map(fn ($o) => $this->transformOrder($o)),
-            'invoices'     => Invoice::with(['salesOrder', 'customer'])
-                                ->orderBy('invoice_id')
-                                ->get()
+            'orders' => SalesOrder::with(['items.product', 'customer.insight', 'invoices', 'taxRegion'])
+                                ->orderByDesc('order_date')->orderByDesc('sales_order_id')
+                                ->get()->map(fn ($o) => $this->transformOrder($o)),
+            'invoices' => Invoice::with(['salesOrder', 'customer'])
+                                ->orderBy('invoice_id')->get()
                                 ->map(fn ($i) => $this->transformInvoice($i)),
         ]);
     }
@@ -81,16 +87,16 @@ class SalesOrderController extends Controller
     public function storeQuotation(Request $request)
     {
         $data = $request->validate([
-            'customer'            => 'required|string',
-            'valid_until'         => 'nullable|date',
-            'tax_region_id'       => 'nullable|integer|exists:tax_regions,id',
+            'customer_id'          => 'required|integer|exists:customers,customer_id',
+            'valid_until'          => 'nullable|date',
+            'tax_region_id'        => 'nullable|integer|exists:tax_regions,id',
             'items'                => 'required|array|min:1',
-            'items.*.product_id'   => 'required|integer|exists:products,product_id',
+            'items.*.product_id'   => 'required|integer|exists:products,id',
             'items.*.quantity'     => 'required|integer|min:1',
             'items.*.discount_percent' => 'nullable|numeric|min:0|max:100',
         ]);
 
-        $customer = Customer::firstOrCreate(['name' => $data['customer']]);
+        $customer = Customer::findOrFail($data['customer_id']);
         $taxRegion = $this->resolveTaxRegion($data['tax_region_id'] ?? null);
 
         $quotation = DB::transaction(function () use ($data, $customer, $taxRegion) {
@@ -157,6 +163,12 @@ class SalesOrderController extends Controller
                 'tax_amount'       => $quotation->tax_amount,
                 'shipping_fee'     => 0,
                 'total_amount'     => $quotation->total_amount,
+                'payment_status'   => 'pending',
+                'shipping_name'    => $quotation->customer->full_name,
+                'shipping_email'   => $quotation->customer->email,
+                'shipping_phone'   => $quotation->customer->phone_number,
+                'shipping_address' => optional($quotation->customer->insight)->address,
+                'origin'           => 'quotation',
             ]);
 
             foreach ($quotation->items as $item) {
@@ -310,8 +322,9 @@ class SalesOrderController extends Controller
             $product = Product::findOrFail($item['product_id']);
             $qty     = $item['quantity'];
             $pct     = $item['discount_percent'] ?? 0;
+            $unitPrice = (float) ($product->unit_price ?? $product->price);
 
-            $lineGross = $product->unit_price * $qty;
+            $lineGross = $unitPrice * $qty;
             $lineDisc  = round($lineGross * ($pct / 100), 2);
             $lineTotal = round($lineGross - $lineDisc, 2);
 
@@ -319,9 +332,9 @@ class SalesOrderController extends Controller
             $discountTotal += $lineDisc;
 
             $lines[] = [
-                'product_id'       => $product->product_id,
+                'product_id'       => $product->id,
                 'quantity'         => $qty,
-                'unit_price'       => $product->unit_price,
+                'unit_price'       => $unitPrice,
                 'discount_percent' => $pct,
                 'line_total'       => $lineTotal,
             ];
@@ -336,7 +349,7 @@ class SalesOrderController extends Controller
             'id'         => 'QT-' . str_pad($q->quotation_id, 4, '0', STR_PAD_LEFT),
             'quotationId'=> $q->quotation_id,
             'customer'   => $q->customer->full_name,
-            'customerAddress' => $q->customer->address ?? null, // TODO: canonical Customer has no address field — see change log
+            'customerAddress' => optional($q->customer->insight)->address,
             'date'       => $q->quotation_date->toDateString(),
             'validUntil' => $q->valid_until->toDateString(),
             'status'     => $q->status,
@@ -364,7 +377,7 @@ class SalesOrderController extends Controller
             'orderId'     => $o->sales_order_id,
             'quotationId' => $o->quotation_id,
             'customer'    => $o->customer->full_name,
-            'customerAddress' => $o->customer->address ?? null, // TODO: canonical Customer has no address field — see change log
+            'customerAddress' => optional($o->customer->insight)->address,
             'date'        => $o->order_date->toDateString(),
             'status'      => $o->order_status,
             'held'        => (bool) $o->on_hold,
@@ -385,6 +398,13 @@ class SalesOrderController extends Controller
             'shipping'    => (float) $o->shipping_fee,
             'total'       => (float) $o->total_amount,
             'hasInvoice'  => $o->invoices->isNotEmpty(),
+            // New: payment/shipping/refund tracking, merged in from Order History
+            'paymentStatus'    => $o->payment_status,
+            'paymentMethod'    => $o->payment_method,
+            'shippingName'     => $o->shipping_name,
+            'shippingAddress'  => $o->shipping_address,
+            'customerReceived' => (bool) $o->customer_received,
+            'origin'           => $o->origin,
         ];
     }
 

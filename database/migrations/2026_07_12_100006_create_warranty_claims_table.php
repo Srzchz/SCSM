@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('claim_number')->unique();
 
             $table->foreignId('warranty_registration_id')->constrained('ascm_warranty_registrations')->restrictOnDelete();
-            $table->foreignId('customer_id')->constrained('customers')->restrictOnDelete();
+            $table->foreignId('customer_id')->constrained('customers', 'customer_id')->restrictOnDelete();
             $table->foreignId('case_id')->nullable()->constrained('ascm_cases')->nullOnDelete();
 
             $table->text('issue_description');

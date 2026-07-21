@@ -205,7 +205,7 @@
                         @forelse ($cases as $case)
                             @php
                                 $productName = optional($case->product ?? optional($case->orderItem)->product)->name;
-                                $caseMeta = ($case->customer->name ?? '—') . ' • ' . $case->category . ' • ' . ucfirst($case->priority) . ' priority';
+                                $caseMeta = ($case->customer ? $case->customer->first_name . ' ' . $case->customer->last_name : '—') . ' • ' . $case->category . ' • ' . ucfirst($case->priority) . ' priority';
                                 // NOTE: don't use the @json Blade directive here — it splits its
                                 // expression on every top-level comma (to separate the optional
                                 // json_encode $options/$depth args), which mangles any array
@@ -221,7 +221,7 @@
                             <tr>
                                 <td><span class="mono">{{ $case->case_number }}</span></td>
                                 <td>
-                                    <div class="cell-primary">{{ $case->customer->name ?? '—' }}</div>
+                                    <div class="cell-primary">{{ $case->customer ? $case->customer->first_name . ' ' . $case->customer->last_name : '—' }}</div>
                                     @if ($case->order || $productName)
                                         <div class="cell-sub">{{ $case->order->order_number ?? '—' }}@if($productName) • {{ $productName }} @endif</div>
                                     @endif
@@ -519,7 +519,7 @@
 
             renderTimeline('panel-case-timeline', notes, 'No notes yet.');
             renderTimeline('panel-case-attachments', payload.attachments || [], 'No attachments.');
-            renderTimeline('panel-case-communication', notes.filter(function (n) { return n.visibility === 'customer_visible'; }), 'No customer-visible messages yet.');
+            renderTimeline('panel-case-communication', payload.communication || [], 'No customer-visible messages yet.');
             renderTimeline('panel-case-history', payload.history || [], 'No status changes yet.');
 
             resetTabs();
