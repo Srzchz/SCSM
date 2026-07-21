@@ -1,0 +1,120 @@
+--- a/database/migrations/2026_07_08_000004_create_sales_quotations_table.php
++++ b/database/migrations/2026_07_08_000004_create_sales_quotations_table.php
+@@ -22,7 +22,8 @@
+             $table->decimal('discount_amount', 10, 2)->nullable();
+             $table->decimal('tax_amount', 10, 2);
+             $table->decimal('total_amount', 10, 2);
+-            $table->foreignId('created_by')->constrained('users');
++            $table->unsignedInteger('created_by');
++            $table->foreign('created_by')->references('id')->on('users');
+             $table->timestamps();
+         });
+     }
+--- a/database/migrations/2026_07_08_000006_create_sales_orders_table.php
++++ b/database/migrations/2026_07_08_000006_create_sales_orders_table.php
+@@ -16,7 +16,8 @@
+             $table->id('sales_order_id');
+             $table->foreignId('quotation_id')->nullable()->constrained('sales_order_management_sales_quotations', 'quotation_id');
+             $table->foreignId('customer_id')->constrained('customers', 'customer_id');
+-            $table->foreignId('sales_rep_id')->nullable()->constrained('users'); // rep ref from Users/HR module
++            $table->unsignedInteger('sales_rep_id')->nullable(); // rep ref from Users/HR module
++            $table->foreign('sales_rep_id')->references('id')->on('users');
+             $table->date('order_date');
+             $table->enum('order_status', ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']);
+             $table->decimal('subtotal', 10, 2);
+--- a/database/migrations/2026_07_12_100002_create_cases_table.php
++++ b/database/migrations/2026_07_12_100002_create_cases_table.php
+@@ -31,7 +31,8 @@
+             $table->enum('priority', ['low', 'medium', 'high', 'critical'])->default('medium');
+             $table->enum('status', ['pending', 'open', 'resolved', 'closed'])->default('pending');
+ 
+-            $table->foreignId('assigned_to')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('assigned_to')->nullable();
++            $table->foreign('assigned_to')->references('id')->on('users')->nullOnDelete();
+ 
+             $table->timestamp('sla_due_at')->nullable();
+             $table->timestamp('resolved_at')->nullable();
+--- a/database/migrations/2026_07_12_100003_create_case_notes_table.php
++++ b/database/migrations/2026_07_12_100003_create_case_notes_table.php
+@@ -18,7 +18,8 @@
+             $table->id();
+ 
+             $table->foreignId('case_id')->constrained('ascm_cases')->cascadeOnDelete();
+-            $table->foreignId('author_id')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('author_id')->nullable();
++            $table->foreign('author_id')->references('id')->on('users')->nullOnDelete();
+ 
+             $table->enum('entry_type', [
+                 'customer_note',
+--- a/database/migrations/2026_07_12_100004_create_case_attachments_table.php
++++ b/database/migrations/2026_07_12_100004_create_case_attachments_table.php
+@@ -15,7 +15,8 @@
+             $table->id();
+ 
+             $table->foreignId('case_id')->constrained('ascm_cases')->cascadeOnDelete();
+-            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('uploaded_by')->nullable();
++            $table->foreign('uploaded_by')->references('id')->on('users')->nullOnDelete();
+ 
+             $table->string('file_name');
+             $table->string('file_path');
+--- a/database/migrations/2026_07_12_100005_create_case_status_history_table.php
++++ b/database/migrations/2026_07_12_100005_create_case_status_history_table.php
+@@ -20,7 +20,8 @@
+             $table->foreignId('case_id')->constrained('ascm_cases')->cascadeOnDelete();
+             $table->string('from_status')->nullable();
+             $table->string('to_status');
+-            $table->foreignId('changed_by')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('changed_by')->nullable();
++            $table->foreign('changed_by')->references('id')->on('users')->nullOnDelete();
+             $table->text('note')->nullable();
+ 
+             $table->timestamps();
+--- a/database/migrations/2026_07_12_100006_create_warranty_claims_table.php
++++ b/database/migrations/2026_07_12_100006_create_warranty_claims_table.php
+@@ -33,7 +33,8 @@
+ 
+             $table->enum('status', ['submitted', 'under_review', 'approved', 'rejected'])->default('submitted');
+ 
+-            $table->foreignId('decision_by')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('decision_by')->nullable();
++            $table->foreign('decision_by')->references('id')->on('users')->nullOnDelete();
+             $table->timestamp('decision_at')->nullable();
+ 
+             $table->timestamps();
+--- a/database/migrations/2026_07_12_100007_create_warranty_claim_notes_table.php
++++ b/database/migrations/2026_07_12_100007_create_warranty_claim_notes_table.php
+@@ -16,7 +16,8 @@
+             $table->id();
+ 
+             $table->foreignId('warranty_claim_id')->constrained('ascm_warranty_claims')->cascadeOnDelete();
+-            $table->foreignId('author_id')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('author_id')->nullable();
++            $table->foreign('author_id')->references('id')->on('users')->nullOnDelete();
+ 
+             $table->enum('note_type', ['decision', 'service_plan', 'general'])->default('general');
+             $table->text('body');
+--- a/database/migrations/2026_07_12_100008_create_warranty_claim_documents_table.php
++++ b/database/migrations/2026_07_12_100008_create_warranty_claim_documents_table.php
+@@ -16,7 +16,8 @@
+             $table->id();
+ 
+             $table->foreignId('warranty_claim_id')->constrained('ascm_warranty_claims')->cascadeOnDelete();
+-            $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('uploaded_by')->nullable();
++            $table->foreign('uploaded_by')->references('id')->on('users')->nullOnDelete();
+ 
+             $table->string('file_name');
+             $table->string('file_path');
+--- a/database/migrations/2026_07_12_100009_create_warranty_repairs_table.php
++++ b/database/migrations/2026_07_12_100009_create_warranty_repairs_table.php
+@@ -19,7 +19,8 @@
+ 
+             $table->foreignId('warranty_claim_id')->constrained('ascm_warranty_claims')->cascadeOnDelete();
+             $table->enum('status', ['scheduled', 'in_progress', 'completed', 'cancelled'])->default('scheduled');
+-            $table->foreignId('technician_id')->nullable()->constrained('users')->nullOnDelete();
++            $table->unsignedInteger('technician_id')->nullable();
++            $table->foreign('technician_id')->references('id')->on('users')->nullOnDelete();
+ 
+             $table->timestamp('scheduled_at')->nullable();
+             $table->timestamp('completed_at')->nullable();

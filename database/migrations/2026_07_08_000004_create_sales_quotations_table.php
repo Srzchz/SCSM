@@ -22,7 +22,8 @@ return new class extends Migration
             $table->decimal('discount_amount', 10, 2)->nullable();
             $table->decimal('tax_amount', 10, 2);
             $table->decimal('total_amount', 10, 2);
-            $table->foreignId('created_by')->constrained('users');
+            $table->unsignedInteger('created_by');
+            $table->foreign('created_by')->references('id')->on('users');
             $table->timestamps();
         });
     }

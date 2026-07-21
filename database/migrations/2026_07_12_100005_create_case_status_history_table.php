@@ -20,7 +20,8 @@ return new class extends Migration
             $table->foreignId('case_id')->constrained('ascm_cases')->cascadeOnDelete();
             $table->string('from_status')->nullable();
             $table->string('to_status');
-            $table->foreignId('changed_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedInteger('changed_by')->nullable();
+            $table->foreign('changed_by')->references('id')->on('users')->nullOnDelete();
             $table->text('note')->nullable();
 
             $table->timestamps();

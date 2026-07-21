@@ -16,7 +16,8 @@ return new class extends Migration
             $table->id('sales_order_id');
             $table->foreignId('quotation_id')->nullable()->constrained('sales_order_management_sales_quotations', 'quotation_id');
             $table->foreignId('customer_id')->constrained('customers', 'customer_id');
-            $table->foreignId('sales_rep_id')->nullable()->constrained('users'); // rep ref from Users/HR module
+            $table->unsignedInteger('sales_rep_id')->nullable(); // rep ref from Users/HR module
+            $table->foreign('sales_rep_id')->references('id')->on('users');
             $table->date('order_date');
             $table->enum('order_status', ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled']);
             $table->decimal('subtotal', 10, 2);
