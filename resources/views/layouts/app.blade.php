@@ -83,7 +83,6 @@
                     ['icon' => '▦', 'label' => 'Dashboard', 'route' => 'dashboard'],
                     ['icon' => '◇', 'label' => 'Customers', 'route' => 'customers.index'],
                     ['icon' => '◈', 'label' => 'Purchase Behavior', 'route' => 'purchase-behavior'],
-                    ['icon' => '▤', 'label' => 'Orders', 'route' => 'orders.index'],
                     ['icon' => '◔', 'label' => 'Communication Logs', 'route' => 'communication-logs'],
                     ['icon' => '📋', 'label' => 'Sales Quotations', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'quotations']],
                     ['icon' => '🚚', 'label' => 'Sales Orders', 'route' => 'sales-order-management.index', 'params' => ['tab' => 'orders']],
