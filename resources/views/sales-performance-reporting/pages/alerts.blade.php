@@ -6,9 +6,23 @@
 
 @section('title', 'Alerts')
 
+@push('styles')
+    @include('sales-performance-reporting.partials.styles')
+@endpush
+
+@push('scripts')
+    @include('sales-performance-reporting.partials.scripts')
+@endpush
 
 @section('content')
 
+<div class="spr-page">
+    <div class="page-header">
+        <div>
+            <h1 class="section-title">Alerts</h1>
+            <p class="section-hint">Critical breaches, warnings, and opportunities as they happen.</p>
+        </div>
+    </div>
 
     @if (session('success'))
         <div class="card panel" style="background:#e9f5d3; border-color:#c9e6a0; color:#3a5c22; font-weight:700; margin-bottom:22px;">
@@ -229,10 +243,10 @@
             <button class="toggle-switch {{ $settings->forecast_deviation_enabled ? 'active' : 'inactive' }}" onclick="toggleSetting(this)">{{ $settings->forecast_deviation_enabled ? 'Active' : 'Inactive' }}</button>
         </div>
     </section>
-
+</div>
 @endsection
 
-@section('extra-scripts')
+@push('scripts')
 <script>
     // ---------- Filter tabs ----------
     document.querySelectorAll('#alertTabs .seg-tab').forEach(tab => {
@@ -330,4 +344,4 @@
         form.submit();
     }
 </script>
-@endsection
+@endpush
