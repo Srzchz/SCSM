@@ -2,11 +2,23 @@
     resources/views/pages/targets.blade.php
     Route: GET /targets -> App\Http\Controllers\TargetsController@index
 --}}
-@extends('sales-performance-reporting.layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Targets')
 
+@push('styles')
+    @include('sales-performance-reporting.partials.styles')
+@endpush
+
 @section('content')
+
+<div class="spr-page">
+    <div class="page-header">
+        <div>
+            <h1 class="section-title">Target</h1>
+            <p class="section-hint">Attainment against quota by rep, region, and product.</p>
+        </div>
+    </div>
 
     <section class="stat-grid">
         <div class="card stat-card">
@@ -105,10 +117,10 @@
         </table>
         <p class="empty-msg" style="display:none; text-align:center; color:var(--muted); padding:20px 0; margin:0;">No rows match this filter.</p>
     </section>
-
+</div>
 @endsection
 
-@section('extra-scripts')
+@push('scripts')
 <script>
     // ---------- Shared status filter across all three tables ----------
     document.querySelectorAll('#targetTabs .seg-tab').forEach(tab => {
@@ -143,4 +155,4 @@
         this.innerHTML = 'Attainment ' + (sortAsc ? '&#8593;' : '&#8595;');
     });
 </script>
-@endsection
+@endpush

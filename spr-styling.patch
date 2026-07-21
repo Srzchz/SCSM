@@ -1,0 +1,464 @@
+diff --git a/resources/views/sales-performance-reporting/pages/alerts.blade.php b/resources/views/sales-performance-reporting/pages/alerts.blade.php
+index db719d1..046ac14 100644
+--- a/resources/views/sales-performance-reporting/pages/alerts.blade.php
++++ b/resources/views/sales-performance-reporting/pages/alerts.blade.php
+@@ -6,9 +6,23 @@
+ 
+ @section('title', 'Alerts')
+ 
++@push('styles')
++    @include('sales-performance-reporting.partials.styles')
++@endpush
++
++@push('scripts')
++    @include('sales-performance-reporting.partials.scripts')
++@endpush
+ 
+ @section('content')
+ 
++<div class="spr-page">
++    <div class="page-header">
++        <div>
++            <h1 class="section-title">Alerts</h1>
++            <p class="section-hint">Critical breaches, warnings, and opportunities as they happen.</p>
++        </div>
++    </div>
+ 
+     @if (session('success'))
+         <div class="card panel" style="background:#e9f5d3; border-color:#c9e6a0; color:#3a5c22; font-weight:700; margin-bottom:22px;">
+@@ -229,10 +243,10 @@
+             <button class="toggle-switch {{ $settings->forecast_deviation_enabled ? 'active' : 'inactive' }}" onclick="toggleSetting(this)">{{ $settings->forecast_deviation_enabled ? 'Active' : 'Inactive' }}</button>
+         </div>
+     </section>
+-
++</div>
+ @endsection
+ 
+-@section('extra-scripts')
++@push('scripts')
+ <script>
+     // ---------- Filter tabs ----------
+     document.querySelectorAll('#alertTabs .seg-tab').forEach(tab => {
+@@ -330,4 +344,4 @@ function submitDeleteFromModal(){
+         form.submit();
+     }
+ </script>
+-@endsection
++@endpush
+diff --git a/resources/views/sales-performance-reporting/pages/generate-report.blade.php b/resources/views/sales-performance-reporting/pages/generate-report.blade.php
+index 829589c..ba4909b 100644
+--- a/resources/views/sales-performance-reporting/pages/generate-report.blade.php
++++ b/resources/views/sales-performance-reporting/pages/generate-report.blade.php
+@@ -6,10 +6,24 @@
+ 
+ @section('title', 'Generate Report')
+ 
++@push('styles')
++    @include('sales-performance-reporting.partials.styles')
++@endpush
++
++@push('scripts')
++    @include('sales-performance-reporting.partials.scripts')
++@endpush
+ 
+ @section('content')
+ 
+-    
++<div class="spr-page">
++    <div class="page-header">
++        <div>
++            <h1 class="section-title">Generate Report</h1>
++            <p class="section-hint">Build a custom sales report by dimension, range, and filters.</p>
++        </div>
++    </div>
++
+     <section class="card panel" style="margin-bottom:22px;">
+         <h2 style="margin-bottom:4px;">Generate Report</h2>
+         <p class="panel-sub" style="margin-top:0;">Filter by dimension, data range, and export format</p>
+@@ -141,11 +155,10 @@
+     <p id="reportEmptyState" class="card panel" style="display:none; text-align:center; color:var(--muted); font-weight:600;">
+         Filters cleared. Choose your filters above and click <strong style="color:var(--ink); margin:0 4px;">Generate Report</strong> to see results.
+     </p>
+-
+-    
++</div>
+ @endsection
+ 
+-@section('extra-scripts')
++@push('scripts')
+ <script>
+     // ---------- Dataset per dimension, straight from the DB (see GenerateReportController) ----------
+     const reportData = @json($reportData);
+@@ -255,4 +268,4 @@ function downloadCsv(){
+ 
+     generateReport();
+ </script>
+-@endsection
++@endpush
+diff --git a/resources/views/sales-performance-reporting/pages/revenue-forecast.blade.php b/resources/views/sales-performance-reporting/pages/revenue-forecast.blade.php
+index 6c82b6d..ab5697b 100644
+--- a/resources/views/sales-performance-reporting/pages/revenue-forecast.blade.php
++++ b/resources/views/sales-performance-reporting/pages/revenue-forecast.blade.php
+@@ -6,10 +6,20 @@
+ 
+ @section('title', 'Revenue Forecast')
+ 
++@push('styles')
++    @include('sales-performance-reporting.partials.styles')
++@endpush
+ 
+ @section('content')
+ 
+-<link rel="stylesheet" href="styles.css">
++<div class="spr-page">
++    <div class="page-header">
++        <div>
++            <h1 class="section-title">Revenue Forecast</h1>
++            <p class="section-hint">Projected revenue against actuals, driven by your assumptions.</p>
++        </div>
++    </div>
++
+     <section class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
+         <div class="card stat-card">
+             <div class="stat-label">$ EOQ Forecast</div>
+@@ -70,10 +80,10 @@
+             <span><span class="legend-dot" style="background:#b7aef0"></span>Today</span>
+         </div>
+     </section>
+-
++</div>
+ @endsection
+ 
+-@section('extra-scripts')
++@push('scripts')
+ <script>
+     const months   = @json($months);
+     const actual   = @json($actual); // null = month hasn't closed yet (Chart.js will show a gap, which is correct)
+@@ -163,4 +173,4 @@ function recalcForecast(){
+ 
+     recalcForecast();
+ </script>
+-@endsection
++@endpush
+diff --git a/resources/views/sales-performance-reporting/pages/targets.blade.php b/resources/views/sales-performance-reporting/pages/targets.blade.php
+index 356ee74..57e6af3 100644
+--- a/resources/views/sales-performance-reporting/pages/targets.blade.php
++++ b/resources/views/sales-performance-reporting/pages/targets.blade.php
+@@ -6,10 +6,20 @@
+ 
+ @section('title', 'Targets')
+ 
++@push('styles')
++    @include('sales-performance-reporting.partials.styles')
++@endpush
+ 
+ @section('content')
+ 
+-    <link rel="stylesheet" href="styles.css">
++<div class="spr-page">
++    <div class="page-header">
++        <div>
++            <h1 class="section-title">Target</h1>
++            <p class="section-hint">Attainment against quota by rep, region, and product.</p>
++        </div>
++    </div>
++
+     <section class="stat-grid">
+         <div class="card stat-card">
+             <div class="stat-label">Reps on Track</div>
+@@ -107,10 +117,10 @@
+         </table>
+         <p class="empty-msg" style="display:none; text-align:center; color:var(--muted); padding:20px 0; margin:0;">No rows match this filter.</p>
+     </section>
+-
++</div>
+ @endsection
+ 
+-@section('extra-scripts')
++@push('scripts')
+ <script>
+     // ---------- Shared status filter across all three tables ----------
+     document.querySelectorAll('#targetTabs .seg-tab').forEach(tab => {
+@@ -145,4 +155,4 @@
+         this.innerHTML = 'Attainment ' + (sortAsc ? '&#8593;' : '&#8595;');
+     });
+ </script>
+-@endsection
++@endpush
+diff --git a/resources/views/sales-performance-reporting/partials/scripts.blade.php b/resources/views/sales-performance-reporting/partials/scripts.blade.php
+new file mode 100644
+index 0000000..0dbe75f
+--- /dev/null
++++ b/resources/views/sales-performance-reporting/partials/scripts.blade.php
+@@ -0,0 +1,69 @@
++{{--
++    Shared behavior for the Sales Performance Reporting pages' hand-rolled
++    widgets (.select dropdowns, .modal-overlay popups, .toggle-switch
++    buttons). These pages' markup calls toggleSelect()/initSelect()/
++    openModal()/closeModal()/toggleSetting() via inline onclick handlers,
++    which used to be defined in this module's own standalone layout. Now
++    that the pages render through the shared shell (layouts.app) instead,
++    that layout is no longer included, so these helpers need to be pushed
++    in directly. Defined with `typeof ... === 'undefined'` guards since
++    this partial may be included by more than one page-level @push in the
++    same response.
++--}}
++<script>
++    if (typeof window.toggleSelect === 'undefined') {
++        window.toggleSelect = function (btn) {
++            const el = btn.closest('.select');
++            const wasOpen = el.classList.contains('open');
++            document.querySelectorAll('.select.open').forEach(function (s) { s.classList.remove('open'); });
++            if (!wasOpen) el.classList.add('open');
++        };
++
++        document.addEventListener('click', function (e) {
++            if (!e.target.closest('.select')) {
++                document.querySelectorAll('.select.open').forEach(function (s) { s.classList.remove('open'); });
++            }
++        });
++
++        window.initSelect = function (selectEl, onChange) {
++            if (!selectEl) return;
++            selectEl.querySelectorAll('.select-option').forEach(function (opt) {
++                opt.addEventListener('click', function () {
++                    selectEl.querySelectorAll('.select-option').forEach(function (o) { o.classList.remove('selected'); });
++                    this.classList.add('selected');
++                    selectEl.querySelector('.select-value').textContent = this.textContent.trim();
++                    selectEl.dataset.value = this.dataset.value;
++                    selectEl.classList.remove('open');
++                    if (onChange) onChange(this.dataset.value, this.textContent.trim());
++                });
++            });
++        };
++
++        window.openModal = function (id) {
++            const el = document.getElementById(id);
++            if (!el) return;
++            el.classList.add('open');
++            document.body.style.overflow = 'hidden';
++        };
++
++        window.closeModal = function (id) {
++            const el = document.getElementById(id);
++            if (!el) return;
++            el.classList.remove('open');
++            document.body.style.overflow = '';
++        };
++
++        document.addEventListener('keydown', function (e) {
++            if (e.key === 'Escape') {
++                document.querySelectorAll('.modal-overlay.open').forEach(function (m) { closeModal(m.id); });
++            }
++        });
++
++        window.toggleSetting = function (btn) {
++            const isActive = btn.classList.contains('active');
++            btn.classList.toggle('active', !isActive);
++            btn.classList.toggle('inactive', isActive);
++            btn.textContent = isActive ? 'Inactive' : 'Active';
++        };
++    }
++</script>
+diff --git a/resources/views/sales-performance-reporting/partials/styles.blade.php b/resources/views/sales-performance-reporting/partials/styles.blade.php
+new file mode 100644
+index 0000000..6f8b18c
+--- /dev/null
++++ b/resources/views/sales-performance-reporting/partials/styles.blade.php
+@@ -0,0 +1,196 @@
++{{--
++    Shared styling for the Sales Performance Reporting pages:
++    Generate Report, Revenue Forecast, Alerts, Target.
++
++    These 4 pages @extend the shared shell (layouts.app) rather than their
++    own old standalone layout, so they need their component CSS pushed in
++    directly. This partial is included once per page via @push('styles')
++    so all four stay visually identical and in sync with one file.
++
++    Color tokens mirror the Curema palette already used by the shell
++    (see tailwind.config in layouts.app) and the hand-rolled CSS in
++    ascm/cases.blade.php + ascm/warranty.blade.php, so these pages read as
++    part of the same product rather than a bolted-on module. Custom
++    property NAMES below (--ink, --muted, --accent-red, etc.) are kept
++    from this module's original design so existing inline `style="color:
++    var(--accent-red)"` usages in the page views keep working — only the
++    color VALUES were changed to match Curema/ASCM.
++--}}
++<style>
++    .spr-page{
++        --bg-lavender: #E9EBFC;
++        --panel-white: #FFFFFF;
++        --ink: #120F34;
++        --ink-soft: #3F3B63;
++        --muted: #5B5876;
++        --accent-indigo: #120F34;
++        --accent-indigo-dk: #120F34;
++        --accent-lilac: #CFD2F9;
++        --accent-green: #9CFF9F;
++        --accent-green-dk: #00630F;
++        --accent-red: #8A2A1F;
++        --accent-red-bg: rgba(255,154,145,0.35);
++        --accent-amber: #7A5B12;
++        --accent-amber-bg: rgba(249,223,170,0.5);
++        --accent-blue: #004169;
++        --accent-blue-bg: rgba(126,216,255,0.35);
++        --line-forecast: #120F34;
++        --border-soft: rgba(18,15,52,0.08);
++        --radius-lg: 22px;
++        --radius-md: 18px;
++        --shadow-card: 0 10px 30px rgba(18,15,52,0.04);
++
++        padding-top: 8px;
++        color: var(--ink);
++    }
++
++    .spr-page a{ text-decoration:none; }
++
++    /* ============ PAGE HEADER (matches ASCM Cases/Warranty) ============ */
++    .spr-page .page-header{
++        display:flex; align-items:center; justify-content:space-between; gap:16px;
++        margin-bottom:20px; padding-bottom:16px;
++        border-bottom:1px solid var(--border-soft);
++    }
++    .spr-page .page-header-actions{ display:flex; align-items:center; gap:10px; }
++    .spr-page .section-title{ margin:0; font-size:1.3rem; font-weight:800; color:var(--ink); }
++    .spr-page .section-hint{ margin:4px 0 0; color:var(--muted); font-size:0.9rem; }
++
++    /* ============ SHARED CARD / GRID PRIMITIVES ============ */
++    .spr-page .card{
++        background:var(--panel-white);
++        border-radius:var(--radius-md);
++        box-shadow:var(--shadow-card);
++        border:1px solid var(--border-soft);
++    }
++    .spr-page .stat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:22px; }
++    .spr-page .stat-card{ padding:20px 22px; }
++    .spr-page .stat-label{ display:flex; align-items:center; gap:8px; font-size:0.82rem; font-weight:600; color:var(--muted); margin-bottom:10px; }
++    .spr-page .stat-value{ font-size:1.9rem; font-weight:800; color:var(--ink); margin-bottom:6px; }
++    .spr-page .stat-sub{ font-size:0.78rem; font-weight:600; color:var(--accent-green-dk); }
++    .spr-page .stat-sub.neutral{ color:var(--muted); }
++    .spr-page .stat-sub.warn{ color:var(--accent-red); }
++
++    .spr-page .content-grid{ display:grid; grid-template-columns:1.6fr 1fr; gap:18px; margin-bottom:22px; align-items:stretch; }
++    .spr-page .panel{ padding:24px 26px; }
++    .spr-page .panel h2{ margin:0 0 18px 0; font-size:1.05rem; font-weight:800; color:var(--ink); }
++    .spr-page .panel .panel-sub{ margin:-14px 0 18px 0; font-size:0.85rem; color:var(--muted); font-weight:500; }
++
++    .spr-page .chart-wrap{ height:280px; position:relative; }
++    .spr-page .legend-row{ display:flex; gap:22px; margin-top:12px; font-size:0.82rem; font-weight:600; color:var(--ink-soft); }
++    .spr-page .legend-dot{ display:inline-block; width:22px; height:3px; border-radius:2px; margin-right:6px; vertical-align:middle; }
++
++    /* ============ TABLES ============ */
++    .spr-page .table-panel{ padding:26px 30px 12px 30px; margin-bottom:22px; }
++    .spr-page .table-panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; }
++    .spr-page .table-panel h2{ text-align:center; margin:0; flex:1; font-size:1.05rem; font-weight:800; color:var(--ink); }
++
++    .spr-page table.data-table{ width:100%; border-collapse:collapse; font-size:0.88rem; }
++    .spr-page .data-table thead th{ text-align:left; color:var(--muted); font-weight:700; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; padding:14px 16px; border-bottom:1px solid var(--border-soft); }
++    .spr-page .data-table tbody td{ padding:14px 16px; color:var(--ink-soft); font-weight:600; border-bottom:1px solid rgba(18,15,52,0.05); vertical-align:middle; }
++    .spr-page .data-table tbody tr:last-child td{ border-bottom:none; }
++    .spr-page .data-table tbody tr:hover{ background:rgba(233,235,252,0.45); }
++
++    .spr-page .progress-track{ width:140px; height:8px; border-radius:6px; background:var(--bg-lavender); position:relative; overflow:hidden; }
++    .spr-page .progress-fill{ height:100%; border-radius:6px; }
++    .spr-page .progress-fill.on-track{ background:linear-gradient(90deg,#9CFF9F,#CFD2F9); }
++    .spr-page .progress-fill.at-risk{ background:linear-gradient(90deg,#FF9A91,#8A2A1F); }
++    .spr-page .progress-fill.exceeded{ background:var(--accent-green-dk); }
++
++    .spr-page .status-pill{ font-size:0.78rem; font-weight:700; padding:6px 14px; border-radius:999px; display:inline-block; white-space:nowrap; border:none; }
++    .spr-page .status-pill.on-track{ color:var(--accent-green-dk); background:rgba(156,255,159,0.4); }
++    .spr-page .status-pill.at-risk{ color:var(--accent-red); background:var(--accent-red-bg); }
++    .spr-page .status-pill.exceeded{ color:var(--accent-green-dk); background:rgba(156,255,159,0.4); }
++
++    /* ============ BUTTONS ============ */
++    .spr-page .btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; border:none; cursor:pointer; font-weight:700; font-size:0.85rem; border-radius:999px; padding:10px 22px; letter-spacing:0.2px; font-family:inherit; }
++    .spr-page .btn-primary{ background:var(--accent-indigo, #120F34); color:#fff; }
++    .spr-page .btn-primary:hover{ opacity:0.92; }
++    .spr-page .btn-secondary{ background:#fff; color:var(--ink); border:1px solid rgba(18,15,52,0.14); }
++    .spr-page .btn-secondary:hover{ background:var(--bg-lavender); }
++    .spr-page .btn-dark{ background:var(--ink); color:#fff; padding:8px 18px; border-radius:999px; font-size:0.72rem; }
++    .spr-page .btn-danger{ background:var(--accent-red-bg); color:var(--accent-red); }
++    .spr-page .btn-danger:hover{ background:#fbd7d5; }
++
++    /* ============ CUSTOM SELECT (functional dropdown) ============ */
++    .spr-page .field-label{ font-size:0.85rem; font-weight:700; color:var(--ink); margin-bottom:8px; display:block; }
++    .spr-page .field{ position:relative; }
++    .spr-page .select{ position:relative; }
++    .spr-page .select-btn{
++        width:100%; display:flex; align-items:center; justify-content:space-between;
++        background:var(--bg-lavender); border:1px solid var(--accent-lilac); border-radius:12px;
++        padding:12px 16px; font-size:0.92rem; font-weight:700; color:var(--ink);
++        cursor:pointer; font-family:inherit;
++    }
++    .spr-page .select-btn svg{ transition:transform 0.15s ease; flex-shrink:0; }
++    .spr-page .select.open .select-btn svg{ transform:rotate(180deg); }
++    .spr-page .select-menu{
++        position:absolute; left:0; right:0; top:calc(100% + 8px);
++        background:var(--panel-white); border:1px solid var(--border-soft);
++        border-radius:14px; box-shadow:0 16px 36px rgba(18,15,52,0.18);
++        padding:8px; z-index:50; display:none; max-height:240px; overflow-y:auto;
++    }
++    .spr-page .select.open .select-menu{ display:block; }
++    .spr-page .select-option{ padding:10px 12px; border-radius:9px; font-size:0.9rem; font-weight:600; color:var(--ink-soft); cursor:pointer; }
++    .spr-page .select-option:hover{ background:var(--bg-lavender); color:var(--ink); }
++    .spr-page .select-option.selected{ color:var(--accent-indigo-dk); background:var(--accent-lilac); }
++    .spr-page .mini-select{ min-width:150px; }
++    .spr-page .mini-select .select-btn{ padding:9px 14px; font-size:0.82rem; }
++
++    /* ============ RANGE SLIDER ============ */
++    .spr-page .slider-row{ display:flex; align-items:center; gap:26px; padding:14px 0; }
++    .spr-page .slider-row label{ width:170px; flex-shrink:0; font-size:0.92rem; font-weight:700; color:var(--ink); }
++    .spr-page input[type=range]{ -webkit-appearance:none; appearance:none; flex:1; height:5px; border-radius:4px; background:var(--ink); outline:none; }
++    .spr-page input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:var(--accent-lilac); border:3px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.3); cursor:pointer; }
++    .spr-page input[type=range]::-moz-range-thumb{ width:20px; height:20px; border-radius:50%; background:var(--accent-lilac); border:3px solid #fff; cursor:pointer; }
++    .spr-page .slider-value{ width:52px; text-align:right; font-weight:700; font-size:0.88rem; color:var(--accent-indigo-dk); flex-shrink:0; }
++
++    /* ============ SEGMENTED FILTER TABS (Alerts / Targets) ============ */
++    .spr-page .seg-tabs{ display:inline-flex; gap:4px; background:var(--bg-lavender); padding:4px; border-radius:12px; }
++    .spr-page .seg-tab{ border:none; background:transparent; padding:8px 16px; font-size:0.82rem; font-weight:700; color:var(--muted); border-radius:9px; cursor:pointer; font-family:inherit; }
++    .spr-page .seg-tab.active{ background:var(--panel-white); color:var(--accent-indigo-dk); box-shadow:var(--shadow-card); }
++
++    /* ============ ALERTS ============ */
++    .spr-page .alert-card{ position:relative; display:flex; gap:16px; padding:20px 22px; border-radius:16px; background:var(--panel-white); border:1px solid var(--border-soft); margin-bottom:14px; }
++    .spr-page .alert-icon{ width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:1.05rem; }
++    .spr-page .alert-icon.critical{ background:var(--accent-red-bg); }
++    .spr-page .alert-icon.warning{ background:var(--accent-amber-bg); }
++    .spr-page .alert-icon.positive{ background:rgba(156,255,159,0.4); }
++    .spr-page .alert-icon.info{ background:var(--accent-blue-bg); }
++    .spr-page .alert-body{ flex:1; min-width:0; }
++    .spr-page .alert-title{ font-weight:700; font-size:0.98rem; color:var(--ink); margin-bottom:4px; }
++    .spr-page .alert-desc{ font-size:0.87rem; color:var(--ink-soft); line-height:1.5; margin-bottom:8px; }
++    .spr-page .alert-meta{ font-size:0.76rem; color:var(--muted); margin-bottom:6px; }
++    .spr-page .alert-link{ font-size:0.83rem; font-weight:700; color:var(--accent-indigo-dk); }
++    .spr-page .alert-link:hover{ text-decoration:underline; }
++    .spr-page .unread-dot{ position:absolute; top:20px; right:20px; width:9px; height:9px; border-radius:50%; background:var(--accent-indigo); }
++
++    .spr-page .toggle-switch{ border:none; cursor:pointer; font-size:0.76rem; font-weight:800; padding:6px 16px; border-radius:999px; letter-spacing:0.3px; font-family:inherit; }
++    .spr-page .toggle-switch.active{ background:rgba(156,255,159,0.4); color:var(--accent-green-dk); }
++    .spr-page .toggle-switch.inactive{ background:var(--bg-lavender); color:var(--muted); }
++
++    .spr-page .settings-row{ display:flex; align-items:center; justify-content:space-between; gap:20px; padding:16px 0; border-bottom:1px solid rgba(18,15,52,0.06); }
++    .spr-page .settings-row:last-child{ border-bottom:none; }
++    .spr-page .settings-title{ font-weight:700; font-size:0.92rem; color:var(--ink); margin-bottom:3px; }
++    .spr-page .settings-sub{ font-size:0.8rem; color:var(--muted); }
++
++    /* ============ MODALS (Alert detail / create-edit form) ============ */
++    .spr-page .modal-overlay{ position:fixed; inset:0; z-index:300; background:rgba(18,15,52,0.45); display:none; align-items:center; justify-content:center; padding:20px; }
++    .spr-page .modal-overlay.open{ display:flex; }
++    .spr-page .modal-card{ background:var(--panel-white); border-radius:22px; width:400px; max-width:100%; box-shadow:0 24px 60px rgba(18,15,52,0.35); padding:28px 28px 24px; position:relative; max-height:88vh; overflow-y:auto; }
++    .spr-page .modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
++    .spr-page .modal-head h3{ margin:0; font-size:1.15rem; font-weight:800; color:var(--ink); }
++    .spr-page .modal-close{ border:none; background:var(--bg-lavender); color:var(--ink-soft); width:30px; height:30px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
++    .spr-page .modal-close:hover{ background:var(--accent-lilac); color:var(--accent-indigo-dk); }
++
++    @media (max-width:1180px){
++        .spr-page .stat-grid{ grid-template-columns:repeat(2,1fr); }
++        .spr-page .content-grid{ grid-template-columns:1fr; }
++    }
++    @media (max-width:760px){
++        .spr-page .stat-grid{ grid-template-columns:1fr; }
++        .spr-page table.data-table{ font-size:0.78rem; }
++        .spr-page .slider-row{ flex-wrap:wrap; gap:8px; }
++        .spr-page .slider-row label{ width:100%; }
++    }
++</style>
