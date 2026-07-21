@@ -47,24 +47,7 @@
 
     <script src="{{ asset('js/curema-storage.js') }}"></script>
 
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            max-width: 100vw;
-        }
-        body { font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #DAD7EF; border-radius: 999px; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        [x-cloak] { display: none !important; }
-
-        html.curema-dark { filter: invert(1) hue-rotate(180deg); }
-        html.curema-dark img,
-        html.curema-dark canvas { filter: invert(1) hue-rotate(180deg); }
-    </style>
+    
     @stack('styles')
 </head>
 <body class="bg-curema-bg text-curema-ink antialiased"
