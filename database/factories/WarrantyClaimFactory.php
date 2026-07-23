@@ -4,10 +4,13 @@ namespace Database\Factories;
 
 use App\Models\Customer;
 use App\Modules\ASCM\Models\WarrantyRegistration;
+use App\Modules\ASCM\Models\WarrantyClaim;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class WarrantyClaimFactory extends Factory
 {
+    protected $model = WarrantyClaim::class;
+
     public function definition(): array
     {
         $status = fake()->randomElement(['submitted', 'under_review', 'approved', 'rejected']);

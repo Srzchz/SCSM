@@ -3,10 +3,13 @@
 namespace Database\Factories;
 
 use App\Models\Customer;
+use App\Modules\ASCM\Models\SupportCase;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class SupportCaseFactory extends Factory
 {
+    protected $model = SupportCase::class;    
+
     public function definition(): array
     {
         $status = fake()->randomElement(['pending', 'open', 'resolved', 'closed']);

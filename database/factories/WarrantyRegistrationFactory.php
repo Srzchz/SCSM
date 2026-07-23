@@ -4,10 +4,13 @@ namespace Database\Factories;
 
 use App\Models\Customer;
 use App\Models\Product;
+use App\Modules\ASCM\Models\WarrantyRegistration;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class WarrantyRegistrationFactory extends Factory
 {
+    protected $model = WarrantyRegistration::class;
+
     public function definition(): array
     {
         $start = fake()->dateTimeBetween('-18 months', '-1 month');

@@ -85,4 +85,9 @@ class WarrantyClaim extends Model
     {
         return $this->hasMany(WarrantyRepair::class);
     }
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\WarrantyClaimFactory::new();
+    }
 }
