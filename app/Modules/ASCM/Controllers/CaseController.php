@@ -4,14 +4,64 @@ namespace App\Modules\ASCM\Controllers;
 
 use App\Http\Controllers\Controller;
 
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Modules\ASCM\Models\CaseNote;
 use App\Modules\ASCM\Models\CaseStatusHistory;
 use App\Modules\ASCM\Models\SupportCase;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class CaseController extends Controller
 {
+    /**
+     * Inbound integration point: any module (or, for now, the mock
+     * e-commerce trigger) POSTs here to open a case against an existing
+     * order. Deliberately takes only order_number + case details — the
+     * customer, product, and order_item are resolved server-side from the
+     * order itself, since that's the source of truth already sitting in
+     * the shared `orders` table. Keeps the payload small and impossible
+     * to spoof with mismatched customer/product data.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'order_number' => 'required|string|exists:orders,order_number',
+            'category' => 'required|string|max:100',
+            'priority' => 'nullable|in:low,medium,high,critical',
+            'issue_description' => 'required|string|max:2000',
+            'source_module' => 'nullable|string|max:50',
+        ]);
+
+        $order = Order::where('order_number', $data['order_number'])->firstOrFail();
+        $orderItem = OrderItem::where('order_id', $order->order_id)->first();
+
+        $case = SupportCase::create([
+            'customer_id' => $order->customer_id,
+            'order_id' => $order->order_id,
+            'order_item_id' => $orderItem?->id,
+            'product_id' => $orderItem?->product_id,
+            'category' => $data['category'],
+            'priority' => $data['priority'] ?? 'medium',
+            'status' => 'pending',
+        ]);
+
+        CaseNote::create([
+            'case_id' => $case->id,
+            'entry_type' => 'customer_note',
+            'visibility' => 'customer_visible',
+            'title' => 'Support request via ' . ($data['source_module'] ?? 'external module'),
+            'body' => $data['issue_description'],
+        ]);
+
+        return response()->json([
+            'case_id' => $case->id,
+            'case_number' => $case->case_number,
+            'status' => $case->status,
+        ], 201);
+    }
+
     /**
      * All four actions below redirect back to the dashboard route with
      * ?section=cases so the page lands back on the Cases tab instead of
@@ -103,10 +153,6 @@ class CaseController extends Controller
 
     private function backToCases(string $message): RedirectResponse
     {
-        // Carry forward whatever filter/page query params were on the
-        // request that triggered this action (they're forwarded from the
-        // row's escalate/close form action URLs in cases.blade.php), so
-        // acting on a filtered/paginated view doesn't reset it.
         $params = array_filter(
             request()->only(['cases_page', 'cases_status', 'cases_priority', 'cases_from', 'cases_to', 'cases_customer']),
             fn ($v) => $v !== null && $v !== ''
@@ -114,11 +160,6 @@ class CaseController extends Controller
 
         $params['section'] = 'cases';
 
-        // The SPA shell tracks the active tab via the URL hash (e.g.
-        // "#cases"), separately from the ?section= query string the
-        // server uses to pick which section to render on first paint. A
-        // plain redirect() drops any hash, so the client-side nav falls
-        // back to Overview on reload unless we add it back here.
         $url = route('dashboard', $params) . '#cases';
 
         return redirect($url)->with('status', $message);
