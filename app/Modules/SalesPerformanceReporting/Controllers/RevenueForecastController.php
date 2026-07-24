@@ -3,46 +3,73 @@
 namespace App\Modules\SalesPerformanceReporting\Controllers;
 
 use App\Http\Controllers\Controller;
-
-use App\Modules\SalesPerformanceReporting\Models\ForecastAssumption;
-use App\Modules\SalesPerformanceReporting\Models\MonthlyRevenue;
-use App\Modules\SalesPerformanceReporting\Requests\UpdateForecastAssumptionRequest;
+use App\Modules\SalesPerformanceReporting\Models\Forecast;
+use App\Modules\SalesPerformanceReporting\Services\PeriodHelper;
+use App\Modules\SalesPerformanceReporting\Services\RevenueForecastService;
 use Illuminate\Support\Carbon;
 
 class RevenueForecastController extends Controller
 {
-    private const PERIOD = '2026-Q2';
-
-    public function index()
+    public function index(RevenueForecastService $service)
     {
-        $rows = MonthlyRevenue::orderBy('period_month')->get();
+        // Recompute both forecast methods from the latest data on every load.
+        $service->generate();
 
-        $assumptions = ForecastAssumption::firstOrCreate(
-            ['period' => self::PERIOD],
-            ['growth_rate_pct' => 5, 'deal_close_rate_pct' => 50, 'seasonality_factor_pct' => 50]
-        );
+        $actualSeries = $service->actualMonthlySeries();
+        $lastMonth = Carbon::createFromFormat('Y-m', array_key_last($actualSeries))->startOfMonth();
 
-        // "Today" = the last month that has an actual figure filled in
-        $todayIdx = $rows->filter(fn ($r) => $r->actual_amount !== null)->keys()->last() ?? 0;
+        $forecastMonths = collect(range(1, 3))->map(fn ($i) => (clone $lastMonth)->addMonths($i));
+
+        $forecasts = Forecast::whereIn('period_month', $forecastMonths->map->toDateString())
+            ->get()
+            ->groupBy('method');
+
+        $months = collect(array_keys($actualSeries))
+            ->map(fn ($k) => Carbon::createFromFormat('Y-m', $k)->format('M Y'))
+            ->concat($forecastMonths->map(fn ($m) => $m->format('M Y')))
+            ->values();
+
+        $actualValues = array_values($actualSeries);
+        $todayIdx = count($actualValues) - 1;
+
+        $actual = collect($actualValues)->concat(array_fill(0, 3, null))->values();
+
+        $buildLine = function (string $method) use ($actualValues, $forecasts, $todayIdx) {
+            $line = array_fill(0, $todayIdx, null);
+            $line[] = $actualValues[$todayIdx]; // connects visually at "today"
+            foreach ($forecasts->get($method, collect())->sortBy('period_month') as $f) {
+                $line[] = (float) $f->forecasted_amount;
+            }
+            return $line;
+        };
+
+        $linearLine = $buildLine(Forecast::METHOD_LINEAR);
+        $wmaLine = $buildLine(Forecast::METHOD_WMA);
+
+        $period = PeriodHelper::current();
+        [, $periodEnd] = PeriodHelper::bounds($period);
+        $daysRemaining = max(0, (int) now()->startOfDay()->diffInDays($periodEnd, false));
+
+        $linearEoq = (float) end($linearLine);
+        $wmaEoq = (float) end($wmaLine);
+
+        $lastClosedQuarterActual = array_sum(array_slice($actualValues, -3)) ?: 1;
+        $avgEoqForecast = ($linearEoq + $wmaEoq) / 2;
+        $pctVsLastQuarter = round((($avgEoqForecast * 3 - $lastClosedQuarterActual) / $lastClosedQuarterActual) * 100, 1);
 
         return view('sales-performance-reporting.pages.revenue-forecast', [
-            'active'       => 'revenue-forecast',
-            'months'       => $rows->map(fn ($r) => Carbon::parse($r->period_month)->format('M'))->values(),
-            'actual'       => $rows->map(fn ($r) => $r->actual_amount !== null ? (float) $r->actual_amount : null)->values(),
-            'todayIdx'     => $todayIdx,
-            'assumptions'  => $assumptions,
+            'active'           => 'revenue-forecast',
+            'months'           => $months,
+            'actual'           => $actual,
+            'linearLine'       => $linearLine,
+            'wmaLine'          => $wmaLine,
+            'todayIdx'         => $todayIdx,
+            'linearEoq'        => $linearEoq,
+            'wmaEoq'           => $wmaEoq,
+            'avgEoqForecast'   => $avgEoqForecast,
+            'pctVsLastQuarter' => $pctVsLastQuarter,
+            'daysRemaining'    => $daysRemaining,
+            'period'           => $period,
         ]);
-    }
-
-    // Writes the slider values back to the database — this is the "update"
-    // half of the DB Integration assignment (instruction #7 / screen
-    // recording step 3). A real form POST, not AJAX, so it's easy to
-    // demonstrate on camera: submit -> redirect -> reloaded page shows the
-    // saved values -> check phpMyAdmin -> row is updated.
-    public function update(UpdateForecastAssumptionRequest $request)
-    {
-        ForecastAssumption::updateOrCreate(['period' => self::PERIOD], $request->validated());
-
-        return redirect()->route('sales-performance-reporting.revenue-forecast')->with('success', 'Forecast assumptions saved to the database.');
     }
 }

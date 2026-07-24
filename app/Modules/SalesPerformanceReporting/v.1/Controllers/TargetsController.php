@@ -7,28 +7,21 @@ use App\Http\Controllers\Controller;
 use App\Modules\SalesPerformanceReporting\Models\ProductTarget;
 use App\Modules\SalesPerformanceReporting\Models\RegionTarget;
 use App\Modules\SalesPerformanceReporting\Models\RepTarget;
-use App\Modules\SalesPerformanceReporting\Services\PeriodHelper;
-use App\Modules\SalesPerformanceReporting\Services\TargetSyncService;
 
 class TargetsController extends Controller
 {
-    public function index(TargetSyncService $sync)
+    private const PERIOD = '2026-Q2';
+
+    public function index()
     {
-        $period = PeriodHelper::current();
-
-        // Refresh actual_amount on every target row from real sales data
-        // before reading anything back out.
-        $sync->sync($period);
-
-        $repTargets = RepTarget::with('rep')->where('period', $period)->get();
-        $regionTargets = RegionTarget::with('region')->where('period', $period)->get();
-        $productTargets = ProductTarget::with('product')->where('period', $period)->get();
+        $repTargets = RepTarget::with('rep')->where('period', self::PERIOD)->get();
+        $regionTargets = RegionTarget::with('region')->where('period', self::PERIOD)->get();
+        $productTargets = ProductTarget::with('product')->where('period', self::PERIOD)->get();
 
         $onTrack = fn ($t) => $t->attainmentPct() >= 80;
 
         return view('sales-performance-reporting.pages.targets', [
             'active'  => 'targets',
-            'period'  => $period,
             'kpis' => [
                 'repsOnTrack'     => $repTargets->filter($onTrack)->count() . '/' . $repTargets->count(),
                 'regionsOnTrack'  => $regionTargets->filter($onTrack)->count() . '/' . $regionTargets->count(),

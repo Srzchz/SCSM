@@ -11,17 +11,9 @@ use Illuminate\Support\Facades\Route;
  * All routes for the Sales Performance Reporting sub-module live under
  * /sales-performance-reporting/*, with every route name prefixed
  * "sales-performance-reporting." to avoid collisions with the other SCSM
- * sub-modules sharing this monorepo's single route-name registry.
+ * sub-modules sharing this monorepo's single route-name registry
  * (Sales Order Management, Customer Relationship Management,
  * After-Sales Support and Customer Service Management).
- *
- * CHANGED: forecasting and alerts are now fully automated (no sliders,
- * no manual alert authoring), so the following routes from the previous
- * version were removed:
- *   POST   /revenue-forecast            (assumption sliders update)
- *   POST   /alerts                      (create alert)
- *   PUT    /alerts/{alert}              (edit alert)
- *   DELETE /alerts/{alert}              (delete alert)
  */
 Route::prefix('sales-performance-reporting')
     ->name('sales-performance-reporting.')
@@ -36,9 +28,13 @@ Route::prefix('sales-performance-reporting')
         Route::get('/generate-report', [GenerateReportController::class, 'index'])->name('generate-report');
 
         Route::get('/revenue-forecast', [RevenueForecastController::class, 'index'])->name('revenue-forecast');
+        Route::post('/revenue-forecast', [RevenueForecastController::class, 'update'])->name('revenue-forecast.update');
 
         Route::get('/targets', [TargetsController::class, 'index'])->name('targets');
 
         Route::get('/alerts', [AlertsController::class, 'index'])->name('alerts');
+        Route::post('/alerts', [AlertsController::class, 'store'])->name('alerts.store');
+        Route::put('/alerts/{alert}', [AlertsController::class, 'update'])->name('alerts.update');
+        Route::delete('/alerts/{alert}', [AlertsController::class, 'destroy'])->name('alerts.destroy');
         Route::post('/alerts/{alert}/read', [AlertsController::class, 'markRead'])->name('alerts.markRead');
     });
