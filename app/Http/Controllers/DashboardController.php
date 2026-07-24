@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
+use App\Modules\CRM\Models\CustomerInsight;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -27,8 +30,6 @@ class DashboardController extends Controller
 
         $sections = [
             'overview' => 'sections.overview',
-            'cases' => 'ascm.cases',
-            'warranty' => 'ascm.warranty',
             'sales-order' => 'sections.sales-order',
             'customer-relation' => 'sections.customer-relation',
             'sales-report' => 'sections.sales-report',
@@ -36,21 +37,11 @@ class DashboardController extends Controller
             'settings' => 'sections.settings',
         ];
 
-        [$cases, $caseStats, $caseDetails, $caseFilters] = $this->loadCases($request);
-        [$warrantyClaims, $warrantyStats, $warrantyDetails, $warrantyFilters] = $this->loadWarrantyClaims($request);
         [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues] = $this->loadOverview();
 
         return view('spa', compact(
             'sections',
             'default',
-            'cases',
-            'caseStats',
-            'caseDetails',
-            'caseFilters',
-            'warrantyClaims',
-            'warrantyStats',
-            'warrantyDetails',
-            'warrantyFilters',
             'ovStats',
             'ovSegments',
             'ovCustomers',
@@ -81,6 +72,76 @@ class DashboardController extends Controller
      *     those have an unambiguous definition. Left blank for CLV and
      *     Retention Rate rather than inventing a comparison basis.
      */
+    private function buildOverviewStats(): array
+    {
+        $totalCustomers = Customer::count();
+
+        $customersThirtyDaysAgo = Customer::where('created_at', '<=', now()->subDays(30))->count();
+        $totalGrowthPct = $customersThirtyDaysAgo > 0
+            ? round((($totalCustomers - $customersThirtyDaysAgo) / $customersThirtyDaysAgo) * 100, 1)
+            : null;
+
+        // One aggregate query instead of N+1 across thousands of customers.
+        $orderAggregates = DB::table('orders')
+            ->select('customer_id', DB::raw('COUNT(*) as orders_count'), DB::raw('SUM(grand_total) as total_spent'), DB::raw('MAX(created_at) as last_order_at'))
+            ->groupBy('customer_id')
+            ->get()
+            ->keyBy('customer_id');
+
+        $segmentCounts = ['VIP' => 0, 'Repeat Buyer' => 0, 'New Customer' => 0, 'Inactive' => 0];
+
+        foreach (Customer::select('customer_id', 'created_at')->cursor() as $customer) {
+            $agg = $orderAggregates->get($customer->customer_id);
+            $ordersCount = $agg->orders_count ?? 0;
+            $totalSpent = (float) ($agg->total_spent ?? 0);
+            $lastOrderDate = $agg && $agg->last_order_at ? Carbon::parse($agg->last_order_at) : null;
+
+            $segment = Customer::computeSegment($ordersCount, $totalSpent, $lastOrderDate);
+            $segmentCounts[$segment] = ($segmentCounts[$segment] ?? 0) + 1;
+        }
+
+        $repeatCustomers = $segmentCounts['VIP'] + $segmentCounts['Repeat Buyer'];
+        $retentionRate = $totalCustomers > 0 ? round(($repeatCustomers / $totalCustomers) * 100, 1) : 0;
+        $avgClv = CustomerInsight::avg('clv');
+
+        $segments = [
+            ['label' => 'VIP', 'value' => $segmentCounts['VIP'], 'color' => '#AD9EFF'],
+            ['label' => 'Repeat Buyer', 'value' => $segmentCounts['Repeat Buyer'], 'color' => '#9CFF9F'],
+            ['label' => 'New Customers', 'value' => $segmentCounts['New Customer'], 'color' => '#7ED8FF'],
+            ['label' => 'Inactive', 'value' => $segmentCounts['Inactive'], 'color' => '#B0B4EC'],
+        ];
+        foreach ($segments as &$seg) {
+            $seg['pct'] = $totalCustomers > 0 ? round(($seg['value'] / $totalCustomers) * 100, 1) . '%' : '0%';
+        }
+        unset($seg);
+
+        $stats = [
+            ['label' => 'Total Customers', 'value' => number_format($totalCustomers), 'change' => $totalGrowthPct !== null ? sprintf('%s%.1f%%', $totalGrowthPct >= 0 ? '+' : '', $totalGrowthPct) : null, 'icon' => '👥', 'bg' => 'bg-curema-purplesoft'],
+            ['label' => 'Repeat Customers', 'value' => number_format($repeatCustomers), 'change' => null, 'icon' => '🛒', 'bg' => 'bg-curema-greensoft'],
+            ['label' => 'CLV (Avg)', 'value' => '₱' . number_format($avgClv ?? 0, 2), 'change' => null, 'icon' => '💰', 'bg' => 'bg-curema-bluesoft'],
+            ['label' => 'Retention Rate', 'value' => $retentionRate . '%', 'change' => null, 'icon' => '🏷️', 'bg' => 'bg-curema-orangesoft'],
+        ];
+
+        // Real cumulative growth, last 6 months.
+        $growthRows = Customer::selectRaw("strftime('%Y-%m', created_at) as ym, COUNT(*) as c")
+            ->where('created_at', '>=', now()->subMonths(5)->startOfMonth())
+            ->groupBy('ym')
+            ->get()
+            ->keyBy('ym');
+
+        $growthLabels = [];
+        $growthValues = [];
+        $cumulative = Customer::where('created_at', '<', now()->subMonths(5)->startOfMonth())->count();
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $key = $month->format('Y-m');
+            $cumulative += (int) ($growthRows[$key]->c ?? 0);
+            $growthLabels[] = $month->format('M');
+            $growthValues[] = $cumulative;
+        }
+
+        return compact('stats', 'segments', 'growthLabels', 'growthValues');
+    }
     private function loadOverview(): array
     {
         $customers = Customer::withCount('orders')
@@ -120,7 +181,7 @@ class DashboardController extends Controller
             'VIP' => '#AD9EFF',
             'Repeat Buyer' => '#9CFF9F',
             'New Customers' => '#7ED8FF',
-            'Inactive' => '#B0B4EC',
+            'Inactive' => 'rgb(255,154,145)',
         ];
         $segmentCounts = array_fill_keys(array_keys($segmentColors), 0);
 
@@ -173,7 +234,7 @@ class DashboardController extends Controller
         $ovStats = [
             ['label' => 'Total Customers', 'value' => number_format($totalCustomers), 'change' => $periodChange($customersLast30, $customersPrev30), 'tint' => 'tint-purple'],
             ['label' => 'Repeat Customers', 'value' => number_format($repeatCustomers->count()), 'change' => $periodChange($repeatLast30, $repeatPrev30), 'tint' => 'tint-green'],
-            ['label' => 'CLV (Avg)', 'value' => '₱' . number_format($avgClv, 2), 'change' => null, 'tint' => 'tint-blue'],
+            ['label' => 'CLV (Avg)', 'value' => '₱' . ($avgClv >= 1000 ? number_format($avgClv / 1000, 1) . 'K' : number_format($avgClv, 2)), 'change' => null, 'tint' => 'tint-blue'],
             ['label' => 'Retention Rate', 'value' => $retentionRate . '%', 'change' => null, 'tint' => 'tint-coral'],
         ];
 

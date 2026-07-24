@@ -1,6 +1,6 @@
 <?php
 
-use App\Modules\Dashboard\Controllers\DashboardController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('dashboard')->group(function () {

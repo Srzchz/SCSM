@@ -1,7 +1,7 @@
 @php $insights = $insights ?? \App\Support\DemoCustomers::insights(); @endphp
 
-<div class="w-[220px] h-[239px] bg-curema-card rounded-2xl border border-curema-border p-4 flex flex-col overflow-hidden">
-    <h2 class="font-semibold mb-3 text-sm">Customer Insight</h2>
+<div class="w-[220px] h-[239px] bg-white rounded-[18px] border border-[rgba(18,15,52,0.08)] shadow-[0_10px_30px_rgba(18,15,52,0.04)] p-[18px] flex flex-col overflow-hidden">
+    <h2 class="font-extrabold text-base mb-3">Customer Insight</h2>
     <ul class="space-y-2.5 overflow-y-auto">
         @foreach ($insights as $i)
             <li class="flex items-center justify-between text-xs">

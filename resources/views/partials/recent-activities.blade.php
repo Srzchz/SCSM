@@ -1,7 +1,7 @@
 @php $activities = $activities ?? \App\Support\DemoCustomers::activities(); @endphp
 
-<div class="w-[220px] h-[263px] bg-curema-card rounded-2xl border border-curema-border p-4 flex flex-col overflow-hidden">
-    <h2 class="font-semibold mb-3 text-sm">Recent Activities</h2>
+<div class="w-[220px] h-[263px] bg-white rounded-[18px] border border-[rgba(18,15,52,0.08)] shadow-[0_10px_30px_rgba(18,15,52,0.04)] p-[18px] flex flex-col overflow-hidden">
+    <h2 class="font-extrabold text-base mb-3">Recent Activities</h2>
     <ul class="divide-y divide-curema-border overflow-y-auto flex-1 scrollbar-hide">
         @foreach ($activities as $a)
             <li class="py-2.5 flex items-start gap-2">

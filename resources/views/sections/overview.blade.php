@@ -38,7 +38,7 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20.59 13.41L11 3.83A2 2 0 009.59 3.24L4 3a1 1 0 00-1 1l.24 5.59a2 2 0 00.58 1.41l9.59 9.59a2 2 0 002.83 0l4.35-4.35a2 2 0 000-2.83zM7 7h.01"/></svg>
                             @endswitch
                         </div>
-                        <div>
+                        <div class="stat-card-body">
                             <p class="stat-card-label">{{ $stat['label'] }}</p>
                             <p class="stat-card-value">{{ $stat['value'] }}</p>
                             @if (!empty($stat['change']))
@@ -109,10 +109,10 @@
                         <thead>
                             <tr>
                                 <th>Customer</th>
-                                <th>Segment</th>
                                 <th>Orders</th>
                                 <th>Lifetime Value</th>
                                 <th>Last Purchase</th>
+                                <th>Segment</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
@@ -120,10 +120,20 @@
                             @forelse ($ovCustomers as $c)
                                 <tr>
                                     <td>{{ $c['name'] }}</td>
-                                    <td>{{ $c['segment'] }}</td>
                                     <td>{{ $c['orders'] }}</td>
                                     <td>{{ $c['ltv'] }}</td>
                                     <td>{{ $c['last'] }}</td>
+                                    <td>
+                                        @php
+                                            $segClass = match($c['segment']) {
+                                                'VIP' => 'pill-segment-vip',
+                                                'Repeat Buyer' => 'pill-segment-repeat',
+                                                'Inactive' => 'pill-segment-inactive',
+                                                default => 'pill-segment-default',
+                                            };
+                                        @endphp
+                                        <span class="pill {{ $segClass }}">{{ $c['segment'] }}</span>
+                                    </td>
                                     <td>
                                         @if ($c['status'] === 'Active')
                                             <span class="pill pill-green">Active</span>
@@ -209,8 +219,8 @@
     .card-subtitle{display:block;margin-top:4px;color:var(--color-text-muted);font-size:0.85rem;}
     .card-subtitle-link{font-size:0.8rem;color:var(--color-primary);font-weight:600;cursor:default;}
 
-    .stat-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;}
-    @media (max-width: 980px){.stat-cards{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    .stat-cards{display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:16px;}
+    @media (max-width: 1200px){.stat-cards{grid-template-columns:repeat(2,minmax(0,1fr));}}
     @media (max-width: 560px){.stat-cards{grid-template-columns:1fr;}}
 
     .stat-card{background:#fff;border:1px solid rgba(18,15,52,0.08);border-radius:16px;padding:16px;display:flex;align-items:flex-start;gap:12px;box-shadow:0 10px 30px rgba(18,15,52,0.04);}
@@ -221,11 +231,11 @@
     .tint-blue{background:rgba(126,216,255,0.4);}
     .tint-coral{background:rgba(255,154,145,0.4);}
     .stat-card-label{margin:0;font-size:0.75rem;color:var(--color-text-muted);}
-    .stat-card-value{margin:2px 0 0;font-size:1.25rem;font-weight:800;line-height:1.2;}
+    .stat-card-body{min-width:0;flex:1;}
+    .stat-card-value{margin:2px 0 0; font-size:1.25rem; font-weight:800; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
     .stat-card-change{margin:2px 0 0;font-size:0.75rem;font-weight:600;color:var(--color-indicator-text-green);}
 
-    .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-    @media (max-width: 900px){.chart-row{grid-template-columns:1fr;}}
+    .chart-row{display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;}
     .chart-card{height:307px;display:flex;flex-direction:column;}
     .chart-card-header{display:flex;align-items:center;justify-content:space-between;}
     .chart-canvas-wrap{flex:1;position:relative;min-height:0;}
@@ -243,18 +253,25 @@
     .segment-swatch{width:10px;height:10px;border-radius:999px;flex-shrink:0;}
     .segment-legend-val{color:var(--color-text-muted);}
 
+    .pill-segment-vip{background:rgba(176,180,236,0.45);color:#4C3FB0;border-color:rgba(91,63,214,0.25);}
+    .pill-segment-repeat{background:rgba(156,255,159,0.4);color:#1F7A2E;border-color:rgba(0,99,15,0.2);}
+    .pill-segment-inactive{background:rgba(126,216,255,0.4);color:#0D5C8C;border-color:rgba(13,92,140,0.25);}
+    .pill-segment-default{background:rgba(255,154,145,0.4);color:#B33A2E;border-color:rgba(179,58,46,0.2);}
+
     .top-customers-header{display:flex;align-items:center;justify-content:space-between;}
 
     .table-wrap{background:#fff;border:1px solid rgba(18,15,52,0.06);border-radius:14px;overflow-x:auto;box-shadow:inset 0 1px 0 rgba(255,255,255,0.8);max-width:100%;}
     .data-table{width:100%;border-collapse:collapse;min-width:0;}
-    .data-table th{font-size:0.8rem;color:var(--color-text-muted);text-align:left;padding:12px 12px;border-bottom:1px solid rgba(18,15,52,0.06);background:#f6f7ff;}
-    .data-table td{padding:12px 12px;border-bottom:1px solid rgba(18,15,52,0.05);vertical-align:top;font-size:0.9rem;}
+    .data-table th{font-size:0.8rem;color:var(--color-text-muted);text-align:center;padding:12px 12px;border-bottom:1px solid rgba(18,15,52,0.06);background:#f6f7ff;}
+    .data-table td{padding:12px 12px;border-bottom:1px solid rgba(18,15,52,0.05);vertical-align:middle;font-size:0.9rem;text-align:center;}
+    .data-table th:first-child,
+    .data-table td:first-child{text-align:left;}
     .link-btn{background:transparent;border:none;color:#2b3cff;font-weight:600;cursor:pointer;padding:0;text-decoration:none;font-size:0.85rem;}
     .link-btn:hover{text-decoration:underline;}
 
     .pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-weight:800;font-size:0.8rem;border:1px solid transparent;}
-    .pill-green{background:rgba(156,255,159,0.18);color:var(--color-indicator-text-green);border-color:rgba(0,99,15,0.2);}
-    .pill-yellow{background:rgba(249,223,170,0.25);color:var(--color-indicator-text-yellow);border-color:rgba(204,155,40,0.18);}
+    .pill-green{background:rgba(156,255,159,0.18);color:#1F7A2E;border-color:rgba(0,99,15,0.2);}
+    .pill-yellow{background:rgba(249,223,170,0.25);color:#8A5A0A;border-color:rgba(204,155,40,0.18);}
 
     .side-card{display:flex;flex-direction:column;gap:12px;}
     .side-card-hint{margin:-6px 0 4px;font-size:0.8rem;color:var(--color-text-muted);line-height:1.4;}
