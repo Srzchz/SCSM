@@ -44,11 +44,6 @@
             <p class="section-hint">Support tickets, SLAs, and service collaboration.</p>
         </div>
 
-        <div class="page-header-actions">
-            <button type="button" class="btn btn-primary" aria-label="New case">
-                New Case
-            </button>
-        </div>
     </div>
 
     @if (session('status'))

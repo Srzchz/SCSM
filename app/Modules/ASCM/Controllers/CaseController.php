@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Modules\ASCM\Models\CaseNote;
 use App\Modules\ASCM\Models\CaseStatusHistory;
 use App\Modules\ASCM\Models\SupportCase;
+use App\Modules\ASCM\Models\WarrantyClaim;
+use App\Modules\ASCM\Models\WarrantyRegistration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,6 +56,31 @@ class CaseController extends Controller
             'status' => 'pending',
         ]);
 
+        $warrantyClaim = null;
+
+        // "Warranty" is a case category, but a real warranty claim is its
+        // own record (ascm_warranty_claims) linked back to this case and
+        // to an existing coverage registration — it doesn't exist just
+        // because someone typed "Warranty" in a dropdown. Only create one
+        // if there's actually an eligible registration to claim against.
+        if (strcasecmp($data['category'], 'Warranty') === 0) {
+            $registration = WarrantyRegistration::where('customer_id', $order['customer_id'])
+                ->where('product_id', $order['product_id'])
+                ->where('coverage_status', 'eligible')
+                ->latest('coverage_start')
+                ->first();
+
+            if ($registration) {
+                $warrantyClaim = WarrantyClaim::create([
+                    'warranty_registration_id' => $registration->id,
+                    'customer_id' => $order['customer_id'],
+                    'case_id' => $case->id,
+                    'issue_description' => $data['issue_description'],
+                    'status' => 'submitted',
+                ]);
+            }
+        }
+
         CaseNote::create([
             'case_id' => $case->id,
             'entry_type' => 'customer_note',
@@ -66,6 +93,11 @@ class CaseController extends Controller
             'case_id' => $case->id,
             'case_number' => $case->case_number,
             'status' => $case->status,
+            'warranty_claim' => $warrantyClaim ? [
+                'claim_id' => $warrantyClaim->id,
+                'claim_number' => $warrantyClaim->claim_number,
+                'status' => $warrantyClaim->status,
+            ] : null,
         ], 201);
     }
 
