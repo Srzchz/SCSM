@@ -4,44 +4,51 @@ namespace App\Modules\ASCM\Controllers;
 
 use App\Http\Controllers\Controller;
 
-use App\Models\Order;
-use App\Models\OrderItem;
 use App\Modules\ASCM\Models\CaseNote;
 use App\Modules\ASCM\Models\CaseStatusHistory;
 use App\Modules\ASCM\Models\SupportCase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class CaseController extends Controller
 {
     /**
      * Inbound integration point: any module (or, for now, the mock
      * e-commerce trigger) POSTs here to open a case against an existing
-     * order. Deliberately takes only order_number + case details — the
-     * customer, product, and order_item are resolved server-side from the
-     * order itself, since that's the source of truth already sitting in
-     * the shared `orders` table. Keeps the payload small and impossible
-     * to spoof with mismatched customer/product data.
+     * order. Takes only order_number + case details. customer_id,
+     * order_id, order_item_id, and product_id are NOT trusted from the
+     * request — they're resolved by calling e-commerce's own read API,
+     * since those tables belong to e-commerce, not ASCM. This holds even
+     * though both modules currently share one database: ASCM never reads
+     * customers/orders/order_items directly, only through the API.
      */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'order_number' => 'required|string|exists:orders,order_number',
+            'order_number' => 'required|string',
             'category' => 'required|string|max:100',
             'priority' => 'nullable|in:low,medium,high,critical',
             'issue_description' => 'required|string|max:2000',
             'source_module' => 'nullable|string|max:50',
         ]);
 
-        $order = Order::where('order_number', $data['order_number'])->firstOrFail();
-        $orderItem = OrderItem::where('order_id', $order->order_id)->first();
+        $orderLookup = Http::get(url("/api/ecommerce/orders/{$data['order_number']}"));
+
+        if ($orderLookup->failed() || ! $orderLookup->json('found')) {
+            return response()->json([
+                'message' => 'order_number not found via e-commerce API.',
+            ], 422);
+        }
+
+        $order = $orderLookup->json();
 
         $case = SupportCase::create([
-            'customer_id' => $order->customer_id,
-            'order_id' => $order->order_id,
-            'order_item_id' => $orderItem?->id,
-            'product_id' => $orderItem?->product_id,
+            'customer_id' => $order['customer_id'],
+            'order_id' => $order['order_id'],
+            'order_item_id' => $order['order_item_id'],
+            'product_id' => $order['product_id'],
             'category' => $data['category'],
             'priority' => $data['priority'] ?? 'medium',
             'status' => 'pending',

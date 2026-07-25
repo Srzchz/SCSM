@@ -32,12 +32,11 @@ class OrderMockController extends Controller
             'issue_description' => $request->input('issue_description'),
         ];
 
-        $response = Http::post(route('api.ascm.cases.store'), $payload);
+        $response = Http::post(url('/api/ascm/cases'), $payload);
 
-        return back()->with([
-            'mock_payload' => $payload,
-            'mock_response' => $response->json(),
-            'mock_status' => $response->status(),
-        ]);
+        return response()->json([
+            'payload' => $payload,
+            'response' => $response->json(),
+        ], $response->status());
     }
 }
