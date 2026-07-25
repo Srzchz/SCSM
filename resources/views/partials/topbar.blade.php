@@ -10,10 +10,10 @@
         <p class="text-sm text-curema-sub">Manage and build stronger relationships with your customers</p>
     </div>
 
-    <div class="flex items-center gap-3">
-        <div class="relative hidden md:block">
+    <div class="flex flex-wrap items-center justify-end gap-3">
+        <div class="relative hidden md:block flex-shrink min-w-0">
             <input type="text" id="global-search" placeholder="Search customers, emails, orders, ..."
-                   class="w-72 pl-4 pr-10 py-2.5 rounded-xl bg-white border border-curema-border text-sm
+                   class="w-full md:w-56 lg:w-72 max-w-full pl-4 pr-10 py-2.5 rounded-xl bg-white border border-curema-border text-sm
                           focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
             <span class="absolute right-3 top-1/2 -translate-y-1/2 text-curema-sub">🔍</span>
         </div>

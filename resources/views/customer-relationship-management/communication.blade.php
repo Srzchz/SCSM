@@ -13,9 +13,6 @@
 
     @include('customer-relationship-management.partials.profile-header', ['customer' => $customer, 'activeTab' => $activeTab])
 
-    {{-- Data lives in its own script tag, not inline in an HTML attribute —
-         this avoids any conflict between JSON's double quotes and the
-         x-data="..." attribute's own double-quote delimiters. --}}
     <script type="application/json" id="comm-logs-data">@json($customer['communication_logs'])</script>
 
     <div class="grid grid-cols-1 xl:grid-cols-[1.7fr_1fr] gap-4 mb-4" x-data="commPage()">

@@ -2,6 +2,8 @@
 
 @section('content')
 
+    @include('partials.topbar')
+
     {{--
         Every section is rendered into the DOM up front, then hidden with
         CSS ([hidden] attribute) except the default one. app.js just toggles

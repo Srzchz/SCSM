@@ -3,11 +3,18 @@
     $showViewAllLink = $showViewAllLink ?? true;
     $tableId = $tableId ?? 'customer-table-body';
     $renderExtras = $renderExtras ?? ($tableTitle === 'All Customers');
+
+    $segmentStyle = [
+        'VIP' => 'background:rgba(176,180,236,0.45);color:#4C3FB0;',
+        'Repeat Buyer' => 'background:rgba(156,255,159,0.4);color:#1F7A2E;',
+        'New Customer' => 'background:rgba(126,216,255,0.4);color:#0D5C8C;',
+        'Inactive' => 'background:rgba(255,154,145,0.4);color:#B33A2E;',
+    ];
 @endphp
 
-<div class="bg-curema-card rounded-2xl border border-curema-border p-5">
+<div class="bg-white rounded-[18px] border border-[rgba(18,15,52,0.08)] shadow-[0_10px_30px_rgba(18,15,52,0.04)] p-5">
     <div class="flex items-center justify-between mb-4">
-        <h2 class="font-semibold">{{ $tableTitle }}</h2>
+        <h2 class="font-extrabold">{{ $tableTitle }}</h2>
         @if ($showViewAllLink)
             <a href="{{ route('customers.index') }}" class="text-xs text-curema-purple font-medium">View all customers</a>
         @endif
@@ -16,13 +23,12 @@
     <div class="overflow-x-auto">
         <table class="w-full text-sm border-separate" style="border-spacing: 0;" data-export="true">
             <thead>
-                <tr class="text-left text-curema-sub text-xs">
-                    <th class="font-medium pb-3 pr-4">Customer</th>
-                    <th class="font-medium pb-3 pr-4 whitespace-nowrap">Total Orders</th>
-                    <th class="font-medium pb-3 pr-4 whitespace-nowrap">Total Spent</th>
-                    <th class="font-medium pb-3 pr-4 whitespace-nowrap">CLV</th>
-                    <th class="font-medium pb-3 pr-4 whitespace-nowrap">Last Order</th>
-                    <th class="font-medium pb-3 pr-4 whitespace-nowrap">Segment</th>
+                <tr class="text-curema-sub text-xs">
+                    <th class="text-left font-medium pb-3 pr-4">Customer</th>
+                    <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Total Orders</th>
+                    <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Lifetime Value</th>
+                    <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Last Order</th>
+                    <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Segment</th>
                     <th class="pb-3"></th>
                 </tr>
             </thead>
@@ -40,16 +46,17 @@
                                 </div>
                             </a>
                         </td>
-                        <td class="pr-4 whitespace-nowrap">{{ $c['orders'] }}</td>
-                        <td class="pr-4 whitespace-nowrap">{{ $c['spent'] }}</td>
-                        <td class="pr-4 whitespace-nowrap">{{ $c['clv'] }}</td>
-                        <td class="pr-4 whitespace-nowrap">{{ $c['last'] }}</td>
-                        <td class="pr-4">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap {{ $badgeClass[$c['segment']] ?? 'bg-curema-bg' }}">
+                        <td class="text-center pr-4 whitespace-nowrap">{{ $c['orders'] }}</td>
+                        <td class="text-center pr-4 whitespace-nowrap">{{ $c['clv'] }}</td>
+                        <td class="text-center pr-4 whitespace-nowrap">{{ $c['last'] }}</td>
+                        <td class="text-center pr-4">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap"
+                                  style="{{ $segmentStyle[$c['segment']] ?? 'background:#f0f0f5;color:#555;' }}">
                                 {{ $c['segment'] }}
                             </span>
                         </td>
-                        <td class="text-curema-sub" onclick="event.stopPropagation()">⋮</td>
+
+                        <td class="text-center text-curema-sub" onclick="event.stopPropagation()">⋮</td>
                     </tr>
                 @endforeach
             </tbody>
