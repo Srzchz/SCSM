@@ -8,6 +8,7 @@ Route::get('/', function () {
 
 require __DIR__.'/dashboard.php';
 require __DIR__.'/ascm.php';
+require __DIR__.'/mock-ecommerce.php';
 require __DIR__.'/communication-logs.php';
 require __DIR__.'/customer-relationship-management.php';
 require __DIR__.'/order-history.php';

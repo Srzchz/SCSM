@@ -1,0 +1,12 @@
+In routes/ascm.php, inside the existing cases group, add one line:
+
+    Route::prefix('cases')->name('cases.')->group(function () {
+        Route::post('/', [CaseController::class, 'store'])->name('store');   // <-- add this
+        Route::patch('{case}/status', [CaseController::class, 'updateStatus'])->name('update-status');
+        Route::post('{case}/notes', [CaseController::class, 'storeNote'])->name('notes.store');
+        Route::patch('{case}/escalate', [CaseController::class, 'escalate'])->name('escalate');
+        Route::patch('{case}/close', [CaseController::class, 'close'])->name('close');
+    });
+
+Put it first so POST /ascm/cases doesn't get shadowed by anything else in the group.
+This gives you POST /ascm/cases as the real integration endpoint, named ascm.cases.store.
