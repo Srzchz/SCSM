@@ -9,11 +9,14 @@
     CSS custom properties and plain-CSS component classes instead of
     Tailwind/Alpine, to match cases.blade.php / warranty.blade.php.
 
-    Stat cards, segment donut, growth chart, and Top Customers now come
-    from DashboardController::loadOverview() (real DB data). The right-hand
-    "Customer Insight" / "Upcoming Follow-ups" / "Recent Activities" cards
-    remain static demo content — no backing model/controller data exists
-    for those yet.
+    Stat cards, segment donut, growth chart, and Top Customers come from
+    DashboardController::loadOverview() (real DB data). Customer Insight
+    now comes from the shared CustomerInsightService, via the same
+    partials.customer-insight / upcoming-followups / recent-activities
+    partials used on the Customer Relation page — one implementation for
+    both pages instead of two, so they can't drift out of sync. Follow-ups
+    and Activities still fall back to static demo content within those
+    partials (no backing model exists for those yet).
 --}}
 
 <div class="overview-wrapper">
@@ -67,7 +70,7 @@
                 <div class="module-card chart-card">
                     <div class="card-header chart-card-header">
                         <h2 class="card-title">Customers by Segment</h2>
-                        <span class="card-subtitle-link">View all segments</span>
+
                     </div>
                     <div class="segment-body">
                         <div class="segment-donut-wrap">
@@ -113,7 +116,6 @@
                                 <th>Lifetime Value</th>
                                 <th>Last Purchase</th>
                                 <th>Segment</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -134,13 +136,6 @@
                                         @endphp
                                         <span class="pill {{ $segClass }}">{{ $c['segment'] }}</span>
                                     </td>
-                                    <td>
-                                        @if ($c['status'] === 'Active')
-                                            <span class="pill pill-green">Active</span>
-                                        @else
-                                            <span class="pill pill-yellow">Inactive</span>
-                                        @endif
-                                    </td>
                                 </tr>
                             @empty
                                 <tr><td colspan="6">No customers yet.</td></tr>
@@ -153,51 +148,9 @@
         </div>
 
         <div class="overview-side">
-            {{-- Static demo content below — no CustomerInsight/FollowUp/Activity
-                 data source has been wired up for these yet. --}}
-            <div class="module-card side-card">
-                <h2 class="card-title">Customer Insight</h2>
-                <p class="side-card-hint">Repeat Buyer is your fastest-growing segment this month.</p>
-                <div class="insight-bar-row">
-                    <span class="insight-bar-label">Repeat Buyer</span>
-                    <div class="insight-bar-track"><div class="insight-bar-fill" style="width:78%;background:#9CFF9F"></div></div>
-                    <span class="insight-bar-pct">+18%</span>
-                </div>
-                <div class="insight-bar-row">
-                    <span class="insight-bar-label">VIP</span>
-                    <div class="insight-bar-track"><div class="insight-bar-fill" style="width:54%;background:#AD9EFF"></div></div>
-                    <span class="insight-bar-pct">+9%</span>
-                </div>
-                <div class="insight-bar-row">
-                    <span class="insight-bar-label">Inactive</span>
-                    <div class="insight-bar-track"><div class="insight-bar-fill" style="width:22%;background:#B0B4EC"></div></div>
-                    <span class="insight-bar-pct">-4%</span>
-                </div>
-            </div>
-
-            <div class="module-card side-card">
-                <h2 class="card-title">Upcoming Follow-ups</h2>
-                <ul class="followup-list">
-                    <li>
-                        <span class="followup-name">—</span>
-                        <span class="followup-note">Not wired to real data yet</span>
-                        <span class="followup-when"></span>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="module-card side-card">
-                <h2 class="card-title">Recent Activities</h2>
-                <div class="timeline timeline-compact">
-                    <div class="timeline-item">
-                        <div class="timeline-dot"></div>
-                        <div class="timeline-body">
-                            <div class="timeline-title">—</div>
-                            <div class="timeline-meta">Not wired to real data yet</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            @include('partials.customer-insight')
+            @include('partials.upcoming-followups')
+            @include('partials.recent-activities')
         </div>
     </div>
 </div>
@@ -278,7 +231,7 @@
 
     .insight-bar-row{display:flex;align-items:center;gap:8px;font-size:0.75rem;}
     .insight-bar-label{width:76px;flex-shrink:0;color:var(--color-text-muted);}
-    .insight-bar-track{flex:1;height:6px;border-radius:999px;background:var(--color-bg);overflow:hidden;}
+    .insight-bar-track{flex:1;height:6px;border-radius:999px;background:transparent;overflow:hidden;}
     .insight-bar-fill{height:100%;border-radius:999px;}
     .insight-bar-pct{width:34px;text-align:right;flex-shrink:0;font-weight:700;}
 

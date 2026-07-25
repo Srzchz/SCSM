@@ -26,8 +26,7 @@
                 <tr class="text-curema-sub text-xs">
                     <th class="text-left font-medium pb-3 pr-4">Customer</th>
                     <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Total Orders</th>
-                    <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Total Spent</th>
-                    <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">CLV</th>
+                    <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Lifetime Value</th>
                     <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Last Order</th>
                     <th class="text-center font-medium pb-3 pr-4 whitespace-nowrap">Segment</th>
                     <th class="pb-3"></th>
@@ -48,7 +47,6 @@
                             </a>
                         </td>
                         <td class="text-center pr-4 whitespace-nowrap">{{ $c['orders'] }}</td>
-                        <td class="text-center pr-4 whitespace-nowrap">{{ $c['spent'] }}</td>
                         <td class="text-center pr-4 whitespace-nowrap">{{ $c['clv'] }}</td>
                         <td class="text-center pr-4 whitespace-nowrap">{{ $c['last'] }}</td>
                         <td class="text-center pr-4">
@@ -57,6 +55,7 @@
                                 {{ $c['segment'] }}
                             </span>
                         </td>
+
                         <td class="text-center text-curema-sub" onclick="event.stopPropagation()">⋮</td>
                     </tr>
                 @endforeach

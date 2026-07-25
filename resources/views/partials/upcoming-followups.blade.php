@@ -1,20 +1,14 @@
 @php $followUps = $followUps ?? \App\Support\DemoCustomers::followUps(); @endphp
 
-<div class="w-[220px] h-[317px] bg-white rounded-[18px] border border-[rgba(18,15,52,0.08)] shadow-[0_10px_30px_rgba(18,15,52,0.04)] p-[18px] flex flex-col overflow-hidden">
-    <h2 class="font-extrabold text-base mb-3">Upcoming Follow-ups</h2>
-    <ul class="divide-y divide-curema-border overflow-y-auto overflow-x-hidden flex-1 scrollbar-hide">
+<div class="module-card side-card">
+    <h2 class="card-title">Upcoming Follow-ups</h2>
+    <ul class="followup-list">
         @foreach ($followUps as $f)
             <li>
-                <a href="{{ route('customers.show', $f['id']) }}" class="py-2.5 flex items-start gap-2 hover:bg-curema-bg -mx-2 px-2 rounded-lg transition min-w-0">
-                    <div class="w-7 h-7 rounded-full bg-curema-bg flex items-center justify-center text-xs shrink-0">👤</div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-xs font-medium leading-tight truncate">{{ $f['name'] }}</p>
-                        <p class="text-[11px] text-curema-sub truncate">{{ $f['note'] }}</p>
-                    </div>
-                    <span class="text-[10px] text-curema-sub shrink-0 whitespace-nowrap">{{ $f['date'] }}</span>
-                </a>
+                <span class="followup-name">{{ $f['name'] }}</span>
+                <span class="followup-note">{{ $f['note'] }}</span>
+                <span class="followup-when">{{ $f['date'] }}</span>
             </li>
         @endforeach
     </ul>
-    <a href="#" class="text-xs text-curema-sub block text-center pt-2">•••</a>
 </div>

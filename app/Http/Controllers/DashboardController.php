@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
 use App\Modules\CRM\Models\CustomerInsight;
+use App\Support\CustomerInsightService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -38,6 +39,7 @@ class DashboardController extends Controller
         ];
 
         [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues] = $this->loadOverview();
+        $insights = CustomerInsightService::segments();
 
         return view('spa', compact(
             'sections',
@@ -47,101 +49,10 @@ class DashboardController extends Controller
             'ovCustomers',
             'ovGrowthLabels',
             'ovGrowthValues',
+            'insights',
         ));
     }
 
-    /**
-     * Real CRM Overview data, replacing the previously hardcoded arrays in
-     * sections/overview.blade.php.
-     *
-     * Definitions used (none of these existed in the codebase before —
-     * chosen deliberately, flag for review if the business wants something
-     * different):
-     *   - CLV = lifetime spend to date (sum of grand_total across a
-     *     customer's orders). Matches CustomerController's per-customer
-     *     total_spent, so this fixes those pages too (they were reading
-     *     the always-empty CustomerInsight.clv column).
-     *   - Retention Rate = % of all customers with 2+ orders.
-     *   - Customer Growth = new customers per calendar week, last 8 weeks,
-     *     grouped by Customer.created_at.
-     *   - "At Risk" segment removed — Customer::computeSegment() never
-     *     produced it; the old Overview view showed it as a fabricated
-     *     demo bucket only.
-     *   - Stat-card "% change" subtext: only computed for Total Customers
-     *     and Repeat Customers (30-day-vs-prior-30-day counts), since
-     *     those have an unambiguous definition. Left blank for CLV and
-     *     Retention Rate rather than inventing a comparison basis.
-     */
-    private function buildOverviewStats(): array
-    {
-        $totalCustomers = Customer::count();
-
-        $customersThirtyDaysAgo = Customer::where('created_at', '<=', now()->subDays(30))->count();
-        $totalGrowthPct = $customersThirtyDaysAgo > 0
-            ? round((($totalCustomers - $customersThirtyDaysAgo) / $customersThirtyDaysAgo) * 100, 1)
-            : null;
-
-        // One aggregate query instead of N+1 across thousands of customers.
-        $orderAggregates = DB::table('orders')
-            ->select('customer_id', DB::raw('COUNT(*) as orders_count'), DB::raw('SUM(grand_total) as total_spent'), DB::raw('MAX(created_at) as last_order_at'))
-            ->groupBy('customer_id')
-            ->get()
-            ->keyBy('customer_id');
-
-        $segmentCounts = ['VIP' => 0, 'Repeat Buyer' => 0, 'New Customer' => 0, 'Inactive' => 0];
-
-        foreach (Customer::select('customer_id', 'created_at')->cursor() as $customer) {
-            $agg = $orderAggregates->get($customer->customer_id);
-            $ordersCount = $agg->orders_count ?? 0;
-            $totalSpent = (float) ($agg->total_spent ?? 0);
-            $lastOrderDate = $agg && $agg->last_order_at ? Carbon::parse($agg->last_order_at) : null;
-
-            $segment = Customer::computeSegment($ordersCount, $totalSpent, $lastOrderDate);
-            $segmentCounts[$segment] = ($segmentCounts[$segment] ?? 0) + 1;
-        }
-
-        $repeatCustomers = $segmentCounts['VIP'] + $segmentCounts['Repeat Buyer'];
-        $retentionRate = $totalCustomers > 0 ? round(($repeatCustomers / $totalCustomers) * 100, 1) : 0;
-        $avgClv = CustomerInsight::avg('clv');
-
-        $segments = [
-            ['label' => 'VIP', 'value' => $segmentCounts['VIP'], 'color' => '#AD9EFF'],
-            ['label' => 'Repeat Buyer', 'value' => $segmentCounts['Repeat Buyer'], 'color' => '#9CFF9F'],
-            ['label' => 'New Customers', 'value' => $segmentCounts['New Customer'], 'color' => '#7ED8FF'],
-            ['label' => 'Inactive', 'value' => $segmentCounts['Inactive'], 'color' => '#B0B4EC'],
-        ];
-        foreach ($segments as &$seg) {
-            $seg['pct'] = $totalCustomers > 0 ? round(($seg['value'] / $totalCustomers) * 100, 1) . '%' : '0%';
-        }
-        unset($seg);
-
-        $stats = [
-            ['label' => 'Total Customers', 'value' => number_format($totalCustomers), 'change' => $totalGrowthPct !== null ? sprintf('%s%.1f%%', $totalGrowthPct >= 0 ? '+' : '', $totalGrowthPct) : null, 'icon' => '👥', 'bg' => 'bg-curema-purplesoft'],
-            ['label' => 'Repeat Customers', 'value' => number_format($repeatCustomers), 'change' => null, 'icon' => '🛒', 'bg' => 'bg-curema-greensoft'],
-            ['label' => 'CLV (Avg)', 'value' => '₱' . number_format($avgClv ?? 0, 2), 'change' => null, 'icon' => '💰', 'bg' => 'bg-curema-bluesoft'],
-            ['label' => 'Retention Rate', 'value' => $retentionRate . '%', 'change' => null, 'icon' => '🏷️', 'bg' => 'bg-curema-orangesoft'],
-        ];
-
-        // Real cumulative growth, last 6 months.
-        $growthRows = Customer::selectRaw("strftime('%Y-%m', created_at) as ym, COUNT(*) as c")
-            ->where('created_at', '>=', now()->subMonths(5)->startOfMonth())
-            ->groupBy('ym')
-            ->get()
-            ->keyBy('ym');
-
-        $growthLabels = [];
-        $growthValues = [];
-        $cumulative = Customer::where('created_at', '<', now()->subMonths(5)->startOfMonth())->count();
-        for ($i = 5; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
-            $key = $month->format('Y-m');
-            $cumulative += (int) ($growthRows[$key]->c ?? 0);
-            $growthLabels[] = $month->format('M');
-            $growthValues[] = $cumulative;
-        }
-
-        return compact('stats', 'segments', 'growthLabels', 'growthValues');
-    }
     private function loadOverview(): array
     {
         $customers = Customer::withCount('orders')
