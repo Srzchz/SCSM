@@ -218,7 +218,7 @@
                                 $productName = optional($registration)->product->name ?? null;
                                 $serial = $registration->serial_number ?? $registration->asset_tag ?? null;
                                 $coverageKey = $registration ? str_replace(' ', '_', strtolower($registration->coverage_status)) : null;
-                                $claimMeta = ($claim->customer->name ?? '—') . ($productName ? ' • ' . $productName : '') . ($serial ? ' • ' . $serial : '');
+                                $claimMeta = ($claim->customer->full_name ?? '—') . ($productName ? ' • ' . $productName : '') . ($serial ? ' • ' . $serial : '');
                                 // See the matching note in cases.blade.php: the @json Blade
                                 // directive splits on every top-level comma, which mangles a
                                 // multi-key array literal default like the one below. Encode by
@@ -232,7 +232,7 @@
                             <tr>
                                 <td><span class="mono">{{ $claim->claim_number }}</span></td>
                                 <td>
-                                    <div class="cell-primary">{{ $claim->customer->name ?? '—' }}</div>
+                                    <div class="cell-primary">{{ $claim->customer->full_name ?? '—' }}</div>
                                     @if ($productName || $serial)
                                         <div class="cell-sub">{{ $productName ?? '—' }}@if($serial) • {{ $serial }} @endif</div>
                                     @endif

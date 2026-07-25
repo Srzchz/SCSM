@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mock\Ecommerce;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -35,11 +36,21 @@ class CustomerMockController extends Controller
     }
 
     /**
-     * Option B: doesn't touch the ASCM-owned `orders` stub table at all.
-     * Places the order through the real Sales Order Management module's own
-     * API — quotation, then accept — same two calls a real storefront
-     * checkout would make. The order this creates shows up in SOM's actual
-     * dashboard, not just in this mock.
+     * Option B: places the order through SOM's real API (quotation, then
+     * accept) — same two calls a real storefront checkout would make. That
+     * order shows up in SOM's real dashboard.
+     *
+     * SOM's `sales_orders` and e-commerce's own `orders` are two different
+     * tables, though — this endpoint owns `orders`, so after SOM confirms
+     * the order, it also writes a matching local row here. Without this,
+     * a freshly placed order would exist in SOM's system but be invisible
+     * to e-commerce itself and un-reportable via the Help Desk, since both
+     * of those only ever look at `orders`.
+     *
+     * It also registers warranty coverage for each item via ASCM's own API
+     * (never writes into ascm_warranty_registrations directly) — there's
+     * no per-product warranty term anywhere in this schema, so a flat
+     * 12-month default is used.
      */
     public function placeOrder(Request $request, Customer $customer)
     {
@@ -66,9 +77,50 @@ class CustomerMockController extends Controller
 
         $order = Http::patch(url("/sales-order-management/api/quotations/{$quotationId}/accept"));
 
+        if ($order->failed()) {
+            return response()->json([
+                'step' => 'accept',
+                'error' => $order->json(),
+            ], $order->status());
+        }
+
+        $orderData = $order->json();
+
+        $localOrder = Order::create([
+            'customer_id' => $customer->customer_id,
+            'order_number' => $orderData['id'],
+            'status' => strtolower($orderData['status'] ?? 'pending'),
+            'subtotal' => $orderData['subtotal'] ?? 0,
+            'discount' => $orderData['discount'] ?? 0,
+            'shipping_fee' => $orderData['shipping'] ?? 0,
+            'tax' => $orderData['tax'] ?? 0,
+            'grand_total' => $orderData['total'] ?? 0,
+            'shipping_name' => $orderData['shippingName'] ?? ($customer->first_name . ' ' . $customer->last_name),
+            'shipping_email' => $customer->email,
+            'shipping_address' => $orderData['shippingAddress'] ?? '',
+            'payment_status' => $orderData['paymentStatus'] ?? 'pending',
+        ]);
+
+        foreach (($orderData['items'] ?? []) as $item) {
+            $orderItem = OrderItem::create([
+                'order_id' => $localOrder->order_id,
+                'product_id' => $item['productId'],
+                'quantity' => $item['qty'],
+                'unit_price' => $item['price'],
+            ]);
+
+            Http::post(url('/api/ascm/warranty-registrations'), [
+                'customer_id' => $customer->customer_id,
+                'order_id' => $localOrder->order_id,
+                'order_item_id' => $orderItem->id,
+                'product_id' => $item['productId'],
+                'coverage_months' => 12,
+            ]);
+        }
+
         return response()->json([
             'quotation' => $quotation->json(),
-            'order' => $order->json(),
-        ], $order->status());
+            'order' => $orderData,
+        ], 200);
     }
 }

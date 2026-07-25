@@ -41,12 +41,16 @@
             @endforelse
         </select>
         <label>Category</label>
-        <select name="category" id="category">
+        <select name="category" id="category" onchange="document.getElementById('amount-field').style.display = this.value === 'Warranty' ? 'block' : 'none'">
             <option>Technical</option>
             <option>Returns</option>
             <option>Warranty</option>
             <option>Support</option>
         </select>
+        <div id="amount-field" style="display:none">
+            <label>Estimated repair/replacement cost (₱)</label>
+            <input type="number" name="estimated_amount" id="estimated_amount" min="0" step="0.01" placeholder="0.00">
+        </div>
         <label>Priority</label>
         <select name="priority" id="priority">
             <option value="">Default (medium)</option>
@@ -115,11 +119,33 @@
                         category: document.getElementById('category').value,
                         priority: document.getElementById('priority').value || null,
                         issue_description: document.getElementById('issue_description').value,
+                        estimated_amount: document.getElementById('estimated_amount').value || null,
                     }),
                 });
-                alert(res.ok ? 'Case submitted successfully.' : 'Failed to submit case.');
-                if (res.ok) { document.getElementById('case-form').reset(); location.reload(); }
+
+                // res.ok alone isn't reliable: if the server redirects
+                // (CSRF/session issue on a `web` route), fetch() silently
+                // follows it and lands on a real 200 page unrelated to case
+                // creation. Only a real JSON body with ok:true counts.
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Non-JSON response (likely a redirect was followed) — status ' + res.status);
+                }
+                const data = await res.json();
+                const success = res.ok && data.ok === true;
+
+                if (success) {
+                    alert('Case submitted successfully.');
+                    document.getElementById('case-form').reset();
+                    location.reload();
+                } else {
+                    const detail = data.errors
+                        ? Object.values(data.errors).flat().join('\n')
+                        : (data.message || 'Unknown error.');
+                    alert('Failed to submit case:\n\n' + detail);
+                }
             } catch (err) {
+                console.error(err);
                 alert('Failed to submit case.');
             } finally {
                 btn.disabled = false;
@@ -150,9 +176,25 @@
                         satisfaction_feedback: document.getElementById('satisfaction_feedback').value || null,
                     }),
                 });
-                alert(res.ok ? 'Rating submitted successfully.' : 'Failed to submit rating.');
-                if (res.ok) { location.reload(); }
+
+                const contentType = res.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    throw new Error('Non-JSON response (likely a redirect was followed) — status ' + res.status);
+                }
+                const data = await res.json();
+                const success = res.ok && data.ok === true;
+
+                if (success) {
+                    alert('Rating submitted successfully.');
+                    location.reload();
+                } else {
+                    const detail = data.errors
+                        ? Object.values(data.errors).flat().join('\n')
+                        : (data.message || 'Unknown error.');
+                    alert('Failed to submit rating:\n\n' + detail);
+                }
             } catch (err) {
+                console.error(err);
                 alert('Failed to submit rating.');
             } finally {
                 btn.disabled = false;

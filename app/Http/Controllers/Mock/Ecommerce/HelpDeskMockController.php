@@ -35,6 +35,7 @@ class HelpDeskMockController extends Controller
             'category' => 'required|string|max:100',
             'priority' => 'nullable|in:low,medium,high,critical',
             'issue_description' => 'required|string|max:500',
+            'estimated_amount' => 'nullable|numeric|min:0',
         ]);
 
         $order = Order::where('order_id', $data['order_id'])->firstOrFail();
@@ -45,6 +46,7 @@ class HelpDeskMockController extends Controller
             'category' => $data['category'],
             'priority' => $data['priority'] ?? null,
             'issue_description' => $data['issue_description'],
+            'estimated_amount' => $data['estimated_amount'] ?? null,
         ]);
 
         return response()->json(['ok' => $response->successful()], $response->status());
