@@ -76,9 +76,10 @@ class AscmShellController extends Controller
         if ($filters['customer'] !== '') {
             $needle = $filters['customer'];
             $query->whereHas('customer', function ($q) use ($needle) {
-                $q->where('name', 'like', "%{$needle}%")
+                $q->where('first_name', 'like', "%{$needle}%")
+                    ->orWhere('last_name', 'like', "%{$needle}%")
                     ->orWhere('email', 'like', "%{$needle}%")
-                    ->orWhere('phone', 'like', "%{$needle}%");
+                    ->orWhere('phone_number', 'like', "%{$needle}%");
             });
         }
 
@@ -194,7 +195,11 @@ class AscmShellController extends Controller
 
         if ($filters['customer'] !== '') {
             $needle = $filters['customer'];
-            $query->whereHas('customer', fn ($q) => $q->where('name', 'like', "%{$needle}%"));
+            $query->whereHas('customer', function ($q) use ($needle) {
+                $q->where('first_name', 'like', "%{$needle}%")
+                    ->orWhere('last_name', 'like', "%{$needle}%")
+                    ->orWhere('email', 'like', "%{$needle}%");
+            });
         }
 
         $warrantyClaims = $query->with([

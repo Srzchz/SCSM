@@ -9,10 +9,9 @@ class RepTarget extends Model
 {
     use HasAttainment;
 
-    public $timestamps = false;
-
-    // Renamed per the SCSM monorepo migration: table is now module-prefixed.
     protected $table = 'sales_performance_reporting_rep_targets';
+
+    public $timestamps = false;
 
     protected $fillable = ['rep_id', 'period', 'target_amount', 'actual_amount'];
 

@@ -4,48 +4,52 @@ namespace App\Modules\SalesPerformanceReporting\Models\Concerns;
 
 trait HasAttainment
 {
-    public function attainmentPct(): int
+    public function attainmentPct(): float
     {
         if ((float) $this->target_amount <= 0) {
-            return 0;
+            return 0.0;
         }
-        return (int) round(((float) $this->actual_amount / (float) $this->target_amount) * 100);
+
+        return round(((float) $this->actual_amount / (float) $this->target_amount) * 100, 1);
+    }
+
+    /** Capped at 100 so progress bars never overflow their track. */
+    public function progressWidth(): float
+    {
+        return min(100, $this->attainmentPct());
     }
 
     public function attainmentStatus(): string
     {
         $pct = $this->attainmentPct();
-        if ($pct >= 100) return 'exceeded';
-        if ($pct >= 80) return 'on-track';
+
+        if ($pct >= 100) {
+            return 'exceeded';
+        }
+
+        if ($pct >= 80) {
+            return 'on-track';
+        }
+
         return 'at-risk';
     }
 
     public function attainmentLabel(): string
     {
-        $status = $this->attainmentStatus();
-        $text = $status === 'on-track' ? 'On track' : ($status === 'at-risk' ? 'At risk' : 'Exceeded');
-        return $this->attainmentPct() . '% - ' . $text;
+        return match ($this->attainmentStatus()) {
+            'exceeded' => 'Exceeded',
+            'on-track' => 'On Track',
+            default    => 'At Risk',
+        };
     }
 
-    public function progressWidth(): int
+    public function actualFormatted(): string
     {
-        return min($this->attainmentPct(), 100);
+        return '₱' . number_format((float) $this->actual_amount / 1000, 1) . 'K';
     }
 
-    public function formatMoney(float $amount, string $symbol = '₱'): string
+    public function targetFormatted(): string
     {
-        return $amount >= 1000000
-            ? $symbol . number_format($amount / 1000000, 2) . 'M'
-            : $symbol . number_format($amount / 1000, 0) . 'K';
-    }
-
-    public function actualFormatted(string $symbol = '₱'): string
-    {
-        return $this->formatMoney((float) $this->actual_amount, $symbol);
-    }
-
-    public function targetFormatted(string $symbol = '₱'): string
-    {
-        return $this->formatMoney((float) $this->target_amount, $symbol);
+        return '₱' . number_format((float) $this->target_amount / 1000, 1) . 'K';
     }
 }

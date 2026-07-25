@@ -1,0 +1,53 @@
+diff --git a/bootstrap/app.php b/bootstrap/app.php
+index ced7ce1..ac87d62 100644
+--- a/bootstrap/app.php
++++ b/bootstrap/app.php
+@@ -19,6 +19,6 @@ return Application::configure(basePath: dirname(__DIR__))
+     })
+     ->withExceptions(function (Exceptions $exceptions): void {
+         $exceptions->shouldRenderJsonWhen(
+-            fn (Request $request) => $request->is('api/*'),
++            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
+         );
+     })->create();
+diff --git a/resources/views/mock/ecommerce/customers/help-desk.blade.php b/resources/views/mock/ecommerce/customers/help-desk.blade.php
+index 58da2dc..67de87a 100644
+--- a/resources/views/mock/ecommerce/customers/help-desk.blade.php
++++ b/resources/views/mock/ecommerce/customers/help-desk.blade.php
+@@ -134,8 +134,16 @@
+                 const data = await res.json();
+                 const success = res.ok && data.ok === true;
+ 
+-                alert(success ? 'Case submitted successfully.' : 'Failed to submit case.');
+-                if (success) { document.getElementById('case-form').reset(); location.reload(); }
++                if (success) {
++                    alert('Case submitted successfully.');
++                    document.getElementById('case-form').reset();
++                    location.reload();
++                } else {
++                    const detail = data.errors
++                        ? Object.values(data.errors).flat().join('\n')
++                        : (data.message || 'Unknown error.');
++                    alert('Failed to submit case:\n\n' + detail);
++                }
+             } catch (err) {
+                 console.error(err);
+                 alert('Failed to submit case.');
+@@ -176,8 +184,15 @@
+                 const data = await res.json();
+                 const success = res.ok && data.ok === true;
+ 
+-                alert(success ? 'Rating submitted successfully.' : 'Failed to submit rating.');
+-                if (success) { location.reload(); }
++                if (success) {
++                    alert('Rating submitted successfully.');
++                    location.reload();
++                } else {
++                    const detail = data.errors
++                        ? Object.values(data.errors).flat().join('\n')
++                        : (data.message || 'Unknown error.');
++                    alert('Failed to submit rating:\n\n' + detail);
++                }
+             } catch (err) {
+                 console.error(err);
+                 alert('Failed to submit rating.');

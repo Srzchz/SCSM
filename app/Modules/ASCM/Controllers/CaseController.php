@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Modules\ASCM\Models\CaseNote;
 use App\Modules\ASCM\Models\CaseStatusHistory;
 use App\Modules\ASCM\Models\SupportCase;
+use App\Modules\ASCM\Models\WarrantyClaim;
+use App\Modules\ASCM\Models\WarrantyRegistration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,6 +33,7 @@ class CaseController extends Controller
             'category' => 'required|string|max:100',
             'priority' => 'nullable|in:low,medium,high,critical',
             'issue_description' => 'required|string|max:2000',
+            'estimated_amount' => 'nullable|numeric|min:0',
             'source_module' => 'nullable|string|max:50',
         ]);
 
@@ -54,6 +57,32 @@ class CaseController extends Controller
             'status' => 'pending',
         ]);
 
+        $warrantyClaim = null;
+
+        // "Warranty" is a case category, but a real warranty claim is its
+        // own record (ascm_warranty_claims) linked back to this case and
+        // to an existing coverage registration — it doesn't exist just
+        // because someone typed "Warranty" in a dropdown. Only create one
+        // if there's actually an eligible registration to claim against.
+        if (strcasecmp($data['category'], 'Warranty') === 0) {
+            $registration = WarrantyRegistration::where('customer_id', $order['customer_id'])
+                ->where('product_id', $order['product_id'])
+                ->where('coverage_status', 'eligible')
+                ->latest('coverage_start')
+                ->first();
+
+            if ($registration) {
+                $warrantyClaim = WarrantyClaim::create([
+                    'warranty_registration_id' => $registration->id,
+                    'customer_id' => $order['customer_id'],
+                    'case_id' => $case->id,
+                    'issue_description' => $data['issue_description'],
+                    'estimated_amount' => $data['estimated_amount'] ?? null,
+                    'status' => 'submitted',
+                ]);
+            }
+        }
+
         CaseNote::create([
             'case_id' => $case->id,
             'entry_type' => 'customer_note',
@@ -66,7 +95,30 @@ class CaseController extends Controller
             'case_id' => $case->id,
             'case_number' => $case->case_number,
             'status' => $case->status,
+            'warranty_claim' => $warrantyClaim ? [
+                'claim_id' => $warrantyClaim->id,
+                'claim_number' => $warrantyClaim->claim_number,
+                'status' => $warrantyClaim->status,
+            ] : null,
         ], 201);
+    }
+
+    /**
+     * Lets the mock help desk (or any module) list a customer's cases —
+     * needed so satisfaction can be recorded against an existing case
+     * without ASCM's cases table being queried directly from outside.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $request->validate([
+            'customer_id' => 'required|integer',
+        ]);
+
+        $cases = SupportCase::where('customer_id', $request->query('customer_id'))
+            ->orderByDesc('created_at')
+            ->get(['id', 'case_number', 'category', 'priority', 'status', 'satisfaction_rating', 'created_at']);
+
+        return response()->json(['cases' => $cases]);
     }
 
     /**
@@ -156,6 +208,37 @@ class CaseController extends Controller
         ]);
 
         return $this->backToCases("Case {$case->case_number} closed.");
+    }
+
+    /**
+     * Records the c. item from the spec ("...and satisfaction levels") —
+     * only allowed once the case is actually resolved or closed, since
+     * rating an open case doesn't mean anything yet.
+     */
+    public function recordSatisfaction(Request $request, SupportCase $case): JsonResponse
+    {
+        if (! in_array($case->status, ['resolved', 'closed'], true)) {
+            return response()->json([
+                'message' => 'Case must be resolved or closed before recording satisfaction.',
+            ], 422);
+        }
+
+        $data = $request->validate([
+            'satisfaction_rating' => 'required|integer|min:1|max:5',
+            'satisfaction_feedback' => 'nullable|string|max:1000',
+        ]);
+
+        $case->update([
+            'satisfaction_rating' => $data['satisfaction_rating'],
+            'satisfaction_feedback' => $data['satisfaction_feedback'] ?? null,
+            'satisfaction_recorded_at' => now(),
+        ]);
+
+        return response()->json([
+            'case_id' => $case->id,
+            'case_number' => $case->case_number,
+            'satisfaction_rating' => $case->satisfaction_rating,
+        ]);
     }
 
     private function backToCases(string $message): RedirectResponse
