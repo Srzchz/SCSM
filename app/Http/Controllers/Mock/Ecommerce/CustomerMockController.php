@@ -18,6 +18,11 @@ class CustomerMockController extends Controller
         return view('mock.ecommerce.customers.index', compact('customers'));
     }
 
+    public function show(Customer $customer)
+    {
+        return view('mock.ecommerce.customers.show', compact('customer'));
+    }
+
     public function orders(Customer $customer)
     {
         $orders = Order::where('customer_id', $customer->customer_id)

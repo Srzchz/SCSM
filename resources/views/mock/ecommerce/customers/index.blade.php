@@ -18,10 +18,10 @@
 </head>
 <body>
     <h1>Who are you simulating?</h1>
-    <p class="sub">Pick a customer to act as, then see their orders and place new ones.</p>
+    <p class="sub">Pick a customer to act as.</p>
     <div class="list">
         @foreach ($customers as $customer)
-            <a class="row" href="{{ route('mock.ecommerce.customers.orders', $customer) }}">
+            <a class="row" href="{{ route('mock.ecommerce.customers.show', $customer) }}">
                 <span>
                     <div class="name">{{ $customer->first_name }} {{ $customer->last_name }}</div>
                     <div class="email">{{ $customer->email }}</div>

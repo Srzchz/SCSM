@@ -11,9 +11,8 @@
         h2 { font-size: 16px; margin: 32px 0 4px; }
         p.sub { color: #57606a; margin-top: 0; margin-bottom: 16px; font-size: 14px; }
         .card { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 4px 0; }
-        .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eaeef2; text-decoration: none; color: inherit; }
+        .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eaeef2; font-size: 14px; }
         .row:last-child { border-bottom: none; }
-        .row:hover { background: #f6f8fa; }
         .status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #ddf4ff; color: #0969da; }
         .empty { padding: 16px; color: #57606a; font-size: 14px; }
         form.card { padding: 18px; }
@@ -25,15 +24,15 @@
     </style>
 </head>
 <body>
-    <a class="back" href="{{ route('mock.ecommerce.customers') }}">&larr; Back to customers</a>
+    <a class="back" href="{{ route('mock.ecommerce.customers.show', $customer) }}">&larr; Back</a>
     <h1>{{ $customer->first_name }} {{ $customer->last_name }}'s orders</h1>
 
     <div class="card">
         @forelse ($orders as $order)
-            <a class="row" href="{{ route('mock.ecommerce.orders.show', $order) }}">
+            <div class="row">
                 <span>{{ $order->order_number }} — ₱{{ number_format($order->grand_total, 2) }}</span>
                 <span class="status">{{ $order->status }}</span>
-            </a>
+            </div>
         @empty
             <div class="empty">No orders yet for this customer.</div>
         @endforelse

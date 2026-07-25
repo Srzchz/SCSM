@@ -102,6 +102,24 @@ class CaseController extends Controller
     }
 
     /**
+     * Lets the mock help desk (or any module) list a customer's cases —
+     * needed so satisfaction can be recorded against an existing case
+     * without ASCM's cases table being queried directly from outside.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $request->validate([
+            'customer_id' => 'required|integer',
+        ]);
+
+        $cases = SupportCase::where('customer_id', $request->query('customer_id'))
+            ->orderByDesc('created_at')
+            ->get(['id', 'case_number', 'category', 'priority', 'status', 'satisfaction_rating', 'created_at']);
+
+        return response()->json(['cases' => $cases]);
+    }
+
+    /**
      * All four actions below redirect back to the dashboard route with
      * ?section=cases so the page lands back on the Cases tab instead of
      * defaulting to Overview. There's no auth system wired up yet, so
@@ -188,6 +206,37 @@ class CaseController extends Controller
         ]);
 
         return $this->backToCases("Case {$case->case_number} closed.");
+    }
+
+    /**
+     * Records the c. item from the spec ("...and satisfaction levels") —
+     * only allowed once the case is actually resolved or closed, since
+     * rating an open case doesn't mean anything yet.
+     */
+    public function recordSatisfaction(Request $request, SupportCase $case): JsonResponse
+    {
+        if (! in_array($case->status, ['resolved', 'closed'], true)) {
+            return response()->json([
+                'message' => 'Case must be resolved or closed before recording satisfaction.',
+            ], 422);
+        }
+
+        $data = $request->validate([
+            'satisfaction_rating' => 'required|integer|min:1|max:5',
+            'satisfaction_feedback' => 'nullable|string|max:1000',
+        ]);
+
+        $case->update([
+            'satisfaction_rating' => $data['satisfaction_rating'],
+            'satisfaction_feedback' => $data['satisfaction_feedback'] ?? null,
+            'satisfaction_recorded_at' => now(),
+        ]);
+
+        return response()->json([
+            'case_id' => $case->id,
+            'case_number' => $case->case_number,
+            'satisfaction_rating' => $case->satisfaction_rating,
+        ]);
     }
 
     private function backToCases(string $message): RedirectResponse

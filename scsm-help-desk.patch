@@ -1,0 +1,791 @@
+diff --git a/app/Http/Controllers/Mock/Ecommerce/CustomerMockController.php b/app/Http/Controllers/Mock/Ecommerce/CustomerMockController.php
+index d1d91cd..a843698 100644
+--- a/app/Http/Controllers/Mock/Ecommerce/CustomerMockController.php
++++ b/app/Http/Controllers/Mock/Ecommerce/CustomerMockController.php
+@@ -18,10 +18,15 @@ class CustomerMockController extends Controller
+         return view('mock.ecommerce.customers.index', compact('customers'));
+     }
+ 
++    public function show(Customer $customer)
++    {
++        return view('mock.ecommerce.customers.show', compact('customer'));
++    }
++
+     public function orders(Customer $customer)
+     {
+         $orders = Order::where('customer_id', $customer->customer_id)
+-            ->orderByDesc('order_date')
++            ->orderByDesc('created_at')
+             ->get();
+ 
+         $products = Product::where('is_active', true)->get();
+diff --git a/app/Http/Controllers/Mock/Ecommerce/HelpDeskMockController.php b/app/Http/Controllers/Mock/Ecommerce/HelpDeskMockController.php
+new file mode 100644
+index 0000000..a77ebe3
+--- /dev/null
++++ b/app/Http/Controllers/Mock/Ecommerce/HelpDeskMockController.php
+@@ -0,0 +1,68 @@
++<?php
++
++namespace App\Http\Controllers\Mock\Ecommerce;
++
++use App\Http\Controllers\Controller;
++use App\Models\Customer;
++use App\Models\Order;
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\Http;
++
++/**
++ * Bundles both consumer-facing ASCM actions: reporting a new case/warranty
++ * issue, and rating a resolved/closed one. Orders are read directly
++ * (e-commerce owns that table); cases are always read through ASCM's own
++ * API (GET /api/ascm/cases) — ascm_cases belongs to ASCM, not this module.
++ */
++class HelpDeskMockController extends Controller
++{
++    public function show(Customer $customer)
++    {
++        $orders = Order::where('customer_id', $customer->customer_id)
++            ->orderByDesc('created_at')
++            ->get();
++
++        $casesResponse = Http::get(url('/api/ascm/cases'), ['customer_id' => $customer->customer_id]);
++        $cases = $casesResponse->ok() ? $casesResponse->json('cases') : [];
++
++        return view('mock.ecommerce.customers.help-desk', compact('customer', 'orders', 'cases'));
++    }
++
++    public function submitCase(Request $request, Customer $customer)
++    {
++        $data = $request->validate([
++            'order_id' => 'required|integer|exists:orders,order_id',
++            'category' => 'required|string|max:100',
++            'priority' => 'nullable|in:low,medium,high,critical',
++            'issue_description' => 'required|string|max:500',
++        ]);
++
++        $order = Order::where('order_id', $data['order_id'])->firstOrFail();
++
++        $response = Http::post(url('/api/ascm/cases'), [
++            'source_module' => 'ecommerce',
++            'order_number' => $order->order_number,
++            'category' => $data['category'],
++            'priority' => $data['priority'] ?? null,
++            'issue_description' => $data['issue_description'],
++        ]);
++
++        return response()->json(['ok' => $response->successful()], $response->status());
++    }
++
++    public function submitSatisfaction(Request $request, Customer $customer)
++    {
++        $data = $request->validate([
++            'case_id' => 'required|integer',
++            'satisfaction_rating' => 'required|integer|min:1|max:5',
++            'satisfaction_feedback' => 'nullable|string|max:1000',
++        ]);
++
++        $response = Http::patch(url("/api/ascm/cases/{$data['case_id']}/satisfaction"), [
++            'satisfaction_rating' => $data['satisfaction_rating'],
++            'satisfaction_feedback' => $data['satisfaction_feedback'] ?? null,
++        ]);
++
++        return response()->json(['ok' => $response->successful()], $response->status());
++    }
++}
+diff --git a/app/Http/Controllers/Mock/Ecommerce/OrderMockController.php b/app/Http/Controllers/Mock/Ecommerce/OrderMockController.php
+deleted file mode 100644
+index bda838a..0000000
+--- a/app/Http/Controllers/Mock/Ecommerce/OrderMockController.php
++++ /dev/null
+@@ -1,42 +0,0 @@
+-<?php
+-
+-namespace App\Http\Controllers\Mock\Ecommerce;
+-
+-use App\Http\Controllers\Controller;
+-use App\Models\Order;
+-use Illuminate\Http\Request;
+-use Illuminate\Support\Facades\Http;
+-
+-class OrderMockController extends Controller
+-{
+-    public function show(Order $order)
+-    {
+-        $order->load('customer');
+-
+-        return view('mock.ecommerce.order', compact('order'));
+-    }
+-
+-    public function requestSupport(Request $request, Order $order)
+-    {
+-        $request->validate([
+-            'category' => 'required|string|max:100',
+-            'priority' => 'nullable|in:low,medium,high,critical',
+-            'issue_description' => 'required|string|max:500',
+-        ]);
+-
+-        $payload = [
+-            'source_module' => 'ecommerce',
+-            'order_number' => $order->order_number,
+-            'category' => $request->input('category'),
+-            'priority' => $request->input('priority'),
+-            'issue_description' => $request->input('issue_description'),
+-        ];
+-
+-        $response = Http::post(url('/api/ascm/cases'), $payload);
+-
+-        return response()->json([
+-            'payload' => $payload,
+-            'response' => $response->json(),
+-        ], $response->status());
+-    }
+-}
+diff --git a/app/Modules/ASCM/Controllers/CaseController.php b/app/Modules/ASCM/Controllers/CaseController.php
+index 5f2ef27..e3a7349 100644
+--- a/app/Modules/ASCM/Controllers/CaseController.php
++++ b/app/Modules/ASCM/Controllers/CaseController.php
+@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
+ use App\Modules\ASCM\Models\CaseNote;
+ use App\Modules\ASCM\Models\CaseStatusHistory;
+ use App\Modules\ASCM\Models\SupportCase;
++use App\Modules\ASCM\Models\WarrantyClaim;
++use App\Modules\ASCM\Models\WarrantyRegistration;
+ use Illuminate\Http\JsonResponse;
+ use Illuminate\Http\RedirectResponse;
+ use Illuminate\Http\Request;
+@@ -54,6 +56,31 @@ class CaseController extends Controller
+             'status' => 'pending',
+         ]);
+ 
++        $warrantyClaim = null;
++
++        // "Warranty" is a case category, but a real warranty claim is its
++        // own record (ascm_warranty_claims) linked back to this case and
++        // to an existing coverage registration — it doesn't exist just
++        // because someone typed "Warranty" in a dropdown. Only create one
++        // if there's actually an eligible registration to claim against.
++        if (strcasecmp($data['category'], 'Warranty') === 0) {
++            $registration = WarrantyRegistration::where('customer_id', $order['customer_id'])
++                ->where('product_id', $order['product_id'])
++                ->where('coverage_status', 'eligible')
++                ->latest('coverage_start')
++                ->first();
++
++            if ($registration) {
++                $warrantyClaim = WarrantyClaim::create([
++                    'warranty_registration_id' => $registration->id,
++                    'customer_id' => $order['customer_id'],
++                    'case_id' => $case->id,
++                    'issue_description' => $data['issue_description'],
++                    'status' => 'submitted',
++                ]);
++            }
++        }
++
+         CaseNote::create([
+             'case_id' => $case->id,
+             'entry_type' => 'customer_note',
+@@ -66,9 +93,32 @@ class CaseController extends Controller
+             'case_id' => $case->id,
+             'case_number' => $case->case_number,
+             'status' => $case->status,
++            'warranty_claim' => $warrantyClaim ? [
++                'claim_id' => $warrantyClaim->id,
++                'claim_number' => $warrantyClaim->claim_number,
++                'status' => $warrantyClaim->status,
++            ] : null,
+         ], 201);
+     }
+ 
++    /**
++     * Lets the mock help desk (or any module) list a customer's cases —
++     * needed so satisfaction can be recorded against an existing case
++     * without ASCM's cases table being queried directly from outside.
++     */
++    public function index(Request $request): JsonResponse
++    {
++        $request->validate([
++            'customer_id' => 'required|integer',
++        ]);
++
++        $cases = SupportCase::where('customer_id', $request->query('customer_id'))
++            ->orderByDesc('created_at')
++            ->get(['id', 'case_number', 'category', 'priority', 'status', 'satisfaction_rating', 'created_at']);
++
++        return response()->json(['cases' => $cases]);
++    }
++
+     /**
+      * All four actions below redirect back to the dashboard route with
+      * ?section=cases so the page lands back on the Cases tab instead of
+@@ -158,6 +208,37 @@ class CaseController extends Controller
+         return $this->backToCases("Case {$case->case_number} closed.");
+     }
+ 
++    /**
++     * Records the c. item from the spec ("...and satisfaction levels") —
++     * only allowed once the case is actually resolved or closed, since
++     * rating an open case doesn't mean anything yet.
++     */
++    public function recordSatisfaction(Request $request, SupportCase $case): JsonResponse
++    {
++        if (! in_array($case->status, ['resolved', 'closed'], true)) {
++            return response()->json([
++                'message' => 'Case must be resolved or closed before recording satisfaction.',
++            ], 422);
++        }
++
++        $data = $request->validate([
++            'satisfaction_rating' => 'required|integer|min:1|max:5',
++            'satisfaction_feedback' => 'nullable|string|max:1000',
++        ]);
++
++        $case->update([
++            'satisfaction_rating' => $data['satisfaction_rating'],
++            'satisfaction_feedback' => $data['satisfaction_feedback'] ?? null,
++            'satisfaction_recorded_at' => now(),
++        ]);
++
++        return response()->json([
++            'case_id' => $case->id,
++            'case_number' => $case->case_number,
++            'satisfaction_rating' => $case->satisfaction_rating,
++        ]);
++    }
++
+     private function backToCases(string $message): RedirectResponse
+     {
+         $params = array_filter(
+diff --git a/database/migrations/2026_07_25_000001_add_satisfaction_to_cases_table.php b/database/migrations/2026_07_25_000001_add_satisfaction_to_cases_table.php
+new file mode 100644
+index 0000000..7b38e34
+--- /dev/null
++++ b/database/migrations/2026_07_25_000001_add_satisfaction_to_cases_table.php
+@@ -0,0 +1,24 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\Schema;
++
++return new class extends Migration
++{
++    public function up(): void
++    {
++        Schema::table('ascm_cases', function (Blueprint $table) {
++            $table->unsignedTinyInteger('satisfaction_rating')->nullable()->after('closed_at');
++            $table->text('satisfaction_feedback')->nullable()->after('satisfaction_rating');
++            $table->timestamp('satisfaction_recorded_at')->nullable()->after('satisfaction_feedback');
++        });
++    }
++
++    public function down(): void
++    {
++        Schema::table('ascm_cases', function (Blueprint $table) {
++            $table->dropColumn(['satisfaction_rating', 'satisfaction_feedback', 'satisfaction_recorded_at']);
++        });
++    }
++};
+diff --git a/resources/views/mock/ecommerce/customers/help-desk.blade.php b/resources/views/mock/ecommerce/customers/help-desk.blade.php
+new file mode 100644
+index 0000000..f0bcc21
+--- /dev/null
++++ b/resources/views/mock/ecommerce/customers/help-desk.blade.php
+@@ -0,0 +1,164 @@
++<!DOCTYPE html>
++<html>
++<head>
++    <title>Mock Ecommerce - {{ $customer->first_name }}'s Help Desk</title>
++    <meta name="csrf-token" content="{{ csrf_token() }}">
++    <style>
++        * { box-sizing: border-box; }
++        body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 48px auto; padding: 0 20px; color: #1f2328; background: #f6f8fa; }
++        a.back { color: #57606a; text-decoration: none; font-size: 13px; }
++        h1 { font-size: 22px; margin: 12px 0 4px; }
++        p.sub { color: #57606a; margin-top: 0; margin-bottom: 20px; font-size: 14px; }
++        h2 { font-size: 16px; margin: 32px 0 4px; }
++        .card { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 18px; }
++        label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
++        select, textarea { width: 100%; padding: 8px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; font-family: inherit; }
++        button { margin-top: 18px; background: #cf222e; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; }
++        button:hover { background: #a40e26; }
++        button.rate { background: #9a6700; }
++        button.rate:hover { background: #7d5400; }
++        button:disabled { opacity: 0.6; cursor: default; }
++        .case-list { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
++        .case-row { padding: 10px 16px; border-bottom: 1px solid #eaeef2; font-size: 14px; display: flex; justify-content: space-between; }
++        .case-row:last-child { border-bottom: none; }
++        .rated { color: #57606a; font-size: 12px; }
++        .empty { padding: 16px; color: #57606a; font-size: 14px; background: #fff; border: 1px solid #d0d7de; border-radius: 8px; }
++    </style>
++</head>
++<body>
++    <a class="back" href="{{ route('mock.ecommerce.customers.show', $customer) }}">&larr; Back</a>
++    <h1>Help Desk</h1>
++    <p class="sub">{{ $customer->first_name }} {{ $customer->last_name }}</p>
++
++    <h2>Report an issue</h2>
++    <form id="case-form" class="card">
++        <label>Order</label>
++        <select name="order_id" id="order_id">
++            @forelse ($orders as $order)
++                <option value="{{ $order->order_id }}">{{ $order->order_number }} — ₱{{ number_format($order->grand_total, 2) }}</option>
++            @empty
++                <option value="">No orders available</option>
++            @endforelse
++        </select>
++        <label>Category</label>
++        <select name="category" id="category">
++            <option>Technical</option>
++            <option>Returns</option>
++            <option>Warranty</option>
++            <option>Support</option>
++        </select>
++        <label>Priority</label>
++        <select name="priority" id="priority">
++            <option value="">Default (medium)</option>
++            <option value="low">Low</option>
++            <option value="medium">Medium</option>
++            <option value="high">High</option>
++            <option value="critical">Critical</option>
++        </select>
++        <label>Issue</label>
++        <textarea name="issue_description" id="issue_description" rows="3" placeholder="Describe the issue..."></textarea>
++        <button type="submit">Send to SCSM</button>
++    </form>
++
++    <h2>Rate a resolved case</h2>
++    <div class="case-list">
++        @forelse ($cases as $case)
++            <div class="case-row">
++                <span>{{ $case['case_number'] }} — {{ $case['category'] }} ({{ $case['status'] }})</span>
++                @if ($case['satisfaction_rating'])
++                    <span class="rated">Rated {{ $case['satisfaction_rating'] }}★</span>
++                @endif
++            </div>
++        @empty
++            <div class="case-row">No cases yet.</div>
++        @endforelse
++    </div>
++
++    <form id="satisfaction-form" class="card">
++        <label>Case</label>
++        <select name="case_id" id="case_id">
++            @forelse ($cases as $case)
++                @if (in_array($case['status'], ['resolved', 'closed']))
++                    <option value="{{ $case['id'] }}">{{ $case['case_number'] }} ({{ $case['status'] }})</option>
++                @endif
++            @empty
++            @endforelse
++        </select>
++        <label>Rating (1–5)</label>
++        <select name="satisfaction_rating" id="satisfaction_rating">
++            <option value="5">5 — Very satisfied</option>
++            <option value="4">4 — Satisfied</option>
++            <option value="3">3 — Neutral</option>
++            <option value="2">2 — Unsatisfied</option>
++            <option value="1">1 — Very unsatisfied</option>
++        </select>
++        <label>Feedback (optional)</label>
++        <textarea name="satisfaction_feedback" id="satisfaction_feedback" rows="2" placeholder="Anything else to add..."></textarea>
++        <button type="submit" class="rate">Submit rating</button>
++    </form>
++
++    <script>
++        const token = document.querySelector('meta[name="csrf-token"]').content;
++
++        document.getElementById('case-form').addEventListener('submit', async function (e) {
++            e.preventDefault();
++            const btn = e.target.querySelector('button');
++            btn.disabled = true;
++            btn.textContent = 'Sending...';
++
++            try {
++                const res = await fetch('{{ route('mock.ecommerce.customers.help-desk.cases', $customer) }}', {
++                    method: 'POST',
++                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
++                    body: JSON.stringify({
++                        order_id: document.getElementById('order_id').value,
++                        category: document.getElementById('category').value,
++                        priority: document.getElementById('priority').value || null,
++                        issue_description: document.getElementById('issue_description').value,
++                    }),
++                });
++                alert(res.ok ? 'Case submitted successfully.' : 'Failed to submit case.');
++                if (res.ok) { document.getElementById('case-form').reset(); location.reload(); }
++            } catch (err) {
++                alert('Failed to submit case.');
++            } finally {
++                btn.disabled = false;
++                btn.textContent = 'Send to SCSM';
++            }
++        });
++
++        document.getElementById('satisfaction-form').addEventListener('submit', async function (e) {
++            e.preventDefault();
++            const btn = e.target.querySelector('button');
++            const caseSelect = document.getElementById('case_id');
++
++            if (!caseSelect.value) {
++                alert('No resolved or closed case available to rate yet.');
++                return;
++            }
++
++            btn.disabled = true;
++            btn.textContent = 'Submitting...';
++
++            try {
++                const res = await fetch('{{ route('mock.ecommerce.customers.help-desk.satisfaction', $customer) }}', {
++                    method: 'PATCH',
++                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
++                    body: JSON.stringify({
++                        case_id: caseSelect.value,
++                        satisfaction_rating: document.getElementById('satisfaction_rating').value,
++                        satisfaction_feedback: document.getElementById('satisfaction_feedback').value || null,
++                    }),
++                });
++                alert(res.ok ? 'Rating submitted successfully.' : 'Failed to submit rating.');
++                if (res.ok) { location.reload(); }
++            } catch (err) {
++                alert('Failed to submit rating.');
++            } finally {
++                btn.disabled = false;
++                btn.textContent = 'Submit rating';
++            }
++        });
++    </script>
++</body>
++</html>
+diff --git a/resources/views/mock/ecommerce/customers/index.blade.php b/resources/views/mock/ecommerce/customers/index.blade.php
+index eb8c523..860ed18 100644
+--- a/resources/views/mock/ecommerce/customers/index.blade.php
++++ b/resources/views/mock/ecommerce/customers/index.blade.php
+@@ -2,18 +2,33 @@
+ <html>
+ <head>
+     <title>Mock Ecommerce - Simulate as customer</title>
++    <style>
++        * { box-sizing: border-box; }
++        body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 48px auto; padding: 0 20px; color: #1f2328; background: #f6f8fa; }
++        h1 { font-size: 22px; margin-bottom: 4px; }
++        p.sub { color: #57606a; margin-top: 0; margin-bottom: 24px; }
++        .list { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; }
++        .row { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #eaeef2; text-decoration: none; color: inherit; }
++        .row:last-child { border-bottom: none; }
++        .row:hover { background: #f6f8fa; }
++        .name { font-weight: 600; }
++        .email { color: #57606a; font-size: 13px; }
++        .arrow { color: #8c959f; }
++    </style>
+ </head>
+-<body style="font-family: sans-serif; max-width: 700px; margin: 40px auto;">
++<body>
+     <h1>Who are you simulating?</h1>
+-    <p>Pick a customer to act as, then you'll see their past orders.</p>
+-    <ul>
++    <p class="sub">Pick a customer to act as.</p>
++    <div class="list">
+         @foreach ($customers as $customer)
+-            <li>
+-                <a href="{{ route('mock.ecommerce.customers.orders', $customer) }}">
+-                    {{ $customer->first_name }} {{ $customer->last_name }} ({{ $customer->email }})
+-                </a>
+-            </li>
++            <a class="row" href="{{ route('mock.ecommerce.customers.show', $customer) }}">
++                <span>
++                    <div class="name">{{ $customer->first_name }} {{ $customer->last_name }}</div>
++                    <div class="email">{{ $customer->email }}</div>
++                </span>
++                <span class="arrow">&rarr;</span>
++            </a>
+         @endforeach
+-    </ul>
++    </div>
+ </body>
+ </html>
+diff --git a/resources/views/mock/ecommerce/customers/orders.blade.php b/resources/views/mock/ecommerce/customers/orders.blade.php
+index 97dfd7c..84210f5 100644
+--- a/resources/views/mock/ecommerce/customers/orders.blade.php
++++ b/resources/views/mock/ecommerce/customers/orders.blade.php
+@@ -3,70 +3,85 @@
+ <head>
+     <title>Mock Ecommerce - {{ $customer->first_name }}'s orders</title>
+     <meta name="csrf-token" content="{{ csrf_token() }}">
++    <style>
++        * { box-sizing: border-box; }
++        body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 48px auto; padding: 0 20px; color: #1f2328; background: #f6f8fa; }
++        a.back { color: #57606a; text-decoration: none; font-size: 13px; }
++        h1 { font-size: 22px; margin: 12px 0 20px; }
++        h2 { font-size: 16px; margin: 32px 0 4px; }
++        p.sub { color: #57606a; margin-top: 0; margin-bottom: 16px; font-size: 14px; }
++        .card { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 4px 0; }
++        .row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #eaeef2; font-size: 14px; }
++        .row:last-child { border-bottom: none; }
++        .status { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #ddf4ff; color: #0969da; }
++        .empty { padding: 16px; color: #57606a; font-size: 14px; }
++        form.card { padding: 18px; }
++        label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
++        select, input[type=number] { width: 100%; padding: 8px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; }
++        button { margin-top: 18px; background: #1f883d; color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-size: 14px; cursor: pointer; }
++        button:hover { background: #1a7f37; }
++        button:disabled { opacity: 0.6; cursor: default; }
++    </style>
+ </head>
+-<body style="font-family: sans-serif; max-width: 700px; margin: 40px auto;">
+-    <p><a href="{{ route('mock.ecommerce.customers') }}">&larr; Back to customers</a></p>
++<body>
++    <a class="back" href="{{ route('mock.ecommerce.customers.show', $customer) }}">&larr; Back</a>
+     <h1>{{ $customer->first_name }} {{ $customer->last_name }}'s orders</h1>
+ 
+-    @if ($orders->isEmpty())
+-        <p>No orders yet for this customer.</p>
+-    @else
+-        <ul>
+-            @foreach ($orders as $order)
+-                <li>
+-                    <a href="{{ route('mock.ecommerce.orders.show', $order) }}">
+-                        {{ $order->order_number }} — {{ $order->status }} — ₱{{ number_format($order->grand_total, 2) }}
+-                    </a>
+-                    (report an issue against this order)
+-                </li>
+-            @endforeach
+-        </ul>
+-    @endif
+-
+-    <hr>
++    <div class="card">
++        @forelse ($orders as $order)
++            <div class="row">
++                <span>{{ $order->order_number }} — ₱{{ number_format($order->grand_total, 2) }}</span>
++                <span class="status">{{ $order->status }}</span>
++            </div>
++        @empty
++            <div class="empty">No orders yet for this customer.</div>
++        @endforelse
++    </div>
+ 
+     <h2>Place a new order</h2>
+-    <p>This calls the real Sales Order Management API (quotation → accept) — it'll show up in their dashboard too.</p>
++    <p class="sub">Goes through Sales Order Management's real API — will show up in their dashboard.</p>
+ 
+-    <form id="place-order-form">
+-        <label>Product</label><br>
++    <form id="place-order-form" class="card">
++        <label>Product</label>
+         <select name="product_id" id="product_id">
+             @foreach ($products as $product)
+                 <option value="{{ $product->id }}">{{ $product->name }} — ₱{{ number_format($product->price, 2) }}</option>
+             @endforeach
+         </select>
+-        <br><br>
+-        <label>Quantity</label><br>
++        <label>Quantity</label>
+         <input type="number" name="quantity" id="quantity" value="1" min="1">
+-        <br><br>
+         <button type="submit">Place order via SOM</button>
+     </form>
+ 
+     <script>
+         document.getElementById('place-order-form').addEventListener('submit', async function (e) {
+             e.preventDefault();
++            const btn = e.target.querySelector('button');
++            btn.disabled = true;
++            btn.textContent = 'Placing order...';
+ 
+             const token = document.querySelector('meta[name="csrf-token"]').content;
+             const productId = document.getElementById('product_id').value;
+             const quantity = document.getElementById('quantity').value;
+ 
+-            const res = await fetch('{{ route('mock.ecommerce.customers.place-order', $customer) }}', {
+-                method: 'POST',
+-                headers: {
+-                    'Content-Type': 'application/json',
+-                    'X-CSRF-TOKEN': token,
+-                    'Accept': 'application/json',
+-                },
+-                body: JSON.stringify({ product_id: productId, quantity: quantity }),
+-            });
+-
+-            const data = await res.json();
++            try {
++                const res = await fetch('{{ route('mock.ecommerce.customers.place-order', $customer) }}', {
++                    method: 'POST',
++                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
++                    body: JSON.stringify({ product_id: productId, quantity: quantity }),
++                });
+ 
+-            if (res.ok) {
+-                alert('Order placed!\n\nStatus: ' + res.status + '\n\n' + JSON.stringify(data.order, null, 2));
+-                location.reload();
+-            } else {
+-                alert('Order placement failed (' + res.status + ')\n\n' + JSON.stringify(data, null, 2));
++                if (res.ok) {
++                    alert('Order placed successfully.');
++                    location.reload();
++                } else {
++                    alert('Order placement failed.');
++                }
++            } catch (err) {
++                alert('Order placement failed.');
++            } finally {
++                btn.disabled = false;
++                btn.textContent = 'Place order via SOM';
+             }
+         });
+     </script>
+diff --git a/resources/views/mock/ecommerce/customers/show.blade.php b/resources/views/mock/ecommerce/customers/show.blade.php
+new file mode 100644
+index 0000000..2d37bd7
+--- /dev/null
++++ b/resources/views/mock/ecommerce/customers/show.blade.php
+@@ -0,0 +1,32 @@
++<!DOCTYPE html>
++<html>
++<head>
++    <title>Mock Ecommerce - {{ $customer->first_name }}</title>
++    <style>
++        * { box-sizing: border-box; }
++        body { font-family: -apple-system, Segoe UI, sans-serif; max-width: 640px; margin: 48px auto; padding: 0 20px; color: #1f2328; background: #f6f8fa; }
++        a.back { color: #57606a; text-decoration: none; font-size: 13px; }
++        h1 { font-size: 22px; margin: 12px 0 24px; }
++        .choices { display: grid; gap: 14px; }
++        .choice { display: block; background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 20px; text-decoration: none; color: inherit; }
++        .choice:hover { border-color: #8c959f; }
++        .choice .title { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
++        .choice .desc { color: #57606a; font-size: 13px; }
++    </style>
++</head>
++<body>
++    <a class="back" href="{{ route('mock.ecommerce.customers') }}">&larr; Back to customers</a>
++    <h1>{{ $customer->first_name }} {{ $customer->last_name }}</h1>
++
++    <div class="choices">
++        <a class="choice" href="{{ route('mock.ecommerce.customers.orders', $customer) }}">
++            <div class="title">Place an Order</div>
++            <div class="desc">Simulate a purchase through Sales Order Management's real API.</div>
++        </a>
++        <a class="choice" href="{{ route('mock.ecommerce.customers.help-desk', $customer) }}">
++            <div class="title">Customer Support / Help Desk</div>
++            <div class="desc">Report an issue against an order, or rate a resolved case.</div>
++        </a>
++    </div>
++</body>
++</html>
+diff --git a/resources/views/mock/ecommerce/order.blade.php b/resources/views/mock/ecommerce/order.blade.php
+deleted file mode 100644
+index 9f9f90c..0000000
+--- a/resources/views/mock/ecommerce/order.blade.php
++++ /dev/null
+@@ -1,71 +0,0 @@
+-<!DOCTYPE html>
+-<html>
+-<head>
+-    <title>Mock Ecommerce - Order {{ $order->order_number }}</title>
+-    <meta name="csrf-token" content="{{ csrf_token() }}">
+-</head>
+-<body style="font-family: sans-serif; max-width: 700px; margin: 40px auto;">
+-    <p><a href="{{ route('mock.ecommerce.customers.orders', $order->customer_id) }}">&larr; Back to customer's orders</a></p>
+-    <h1>Order {{ $order->order_number }}</h1>
+-    <p><strong>Customer:</strong> {{ $order->customer->first_name }} {{ $order->customer->last_name }} ({{ $order->customer->email }})</p>
+-    <p><strong>Status:</strong> {{ $order->status }}</p>
+-    <p><strong>Total:</strong> ₱{{ number_format($order->grand_total, 2) }}</p>
+-
+-    <hr>
+-
+-    <h2>Contact support</h2>
+-    <form id="support-form">
+-        <label>Category</label><br>
+-        <select name="category" id="category">
+-            <option>Technical</option>
+-            <option>Returns</option>
+-            <option>Warranty</option>
+-            <option>Support</option>
+-        </select>
+-        <br><br>
+-        <label>Priority</label><br>
+-        <select name="priority" id="priority">
+-            <option value="">Default (medium)</option>
+-            <option value="low">Low</option>
+-            <option value="medium">Medium</option>
+-            <option value="high">High</option>
+-            <option value="critical">Critical</option>
+-        </select>
+-        <br><br>
+-        <textarea name="issue_description" id="issue_description" rows="4" style="width:100%;" placeholder="Describe the issue..."></textarea>
+-        <br><br>
+-        <button type="submit">Send to SCSM</button>
+-    </form>
+-
+-    <script>
+-        document.getElementById('support-form').addEventListener('submit', async function (e) {
+-            e.preventDefault();
+-
+-            const token = document.querySelector('meta[name="csrf-token"]').content;
+-
+-            const res = await fetch('{{ route('mock.ecommerce.orders.request-support', $order) }}', {
+-                method: 'POST',
+-                headers: {
+-                    'Content-Type': 'application/json',
+-                    'X-CSRF-TOKEN': token,
+-                    'Accept': 'application/json',
+-                },
+-                body: JSON.stringify({
+-                    category: document.getElementById('category').value,
+-                    priority: document.getElementById('priority').value || null,
+-                    issue_description: document.getElementById('issue_description').value,
+-                }),
+-            });
+-
+-            const data = await res.json();
+-
+-            if (res.ok) {
+-                alert('Case created!\n\nStatus: ' + res.status + '\n\n' + JSON.stringify(data.response, null, 2));
+-                document.getElementById('support-form').reset();
+-            } else {
+-                alert('Failed (' + res.status + ')\n\n' + JSON.stringify(data, null, 2));
+-            }
+-        });
+-    </script>
+-</body>
+-</html>
+diff --git a/routes/api.php b/routes/api.php
+index d3531b4..70af65b 100644
+--- a/routes/api.php
++++ b/routes/api.php
+@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
+ // Owned by ASCM
+ Route::prefix('ascm')->name('api.ascm.')->group(function () {
+     Route::post('/cases', [CaseController::class, 'store'])->name('cases.store');
++    Route::get('/cases', [CaseController::class, 'index'])->name('cases.index');
++    Route::patch('/cases/{case}/satisfaction', [CaseController::class, 'recordSatisfaction'])->name('cases.satisfaction');
+ });
+ 
+ // Owned by e-commerce (mock, for now)
+diff --git a/routes/mock-ecommerce.php b/routes/mock-ecommerce.php
+index 5fd0bb5..8c86799 100644
+--- a/routes/mock-ecommerce.php
++++ b/routes/mock-ecommerce.php
+@@ -2,15 +2,19 @@
+ 
+ use App\Http\Controllers\Mock\Ecommerce\CatalogMockController;
+ use App\Http\Controllers\Mock\Ecommerce\CustomerMockController;
+-use App\Http\Controllers\Mock\Ecommerce\OrderMockController;
++use App\Http\Controllers\Mock\Ecommerce\HelpDeskMockController;
+ use Illuminate\Support\Facades\Route;
+ 
+ Route::prefix('mock/ecommerce')->group(function () {
+     Route::get('/customers', [CustomerMockController::class, 'index'])->name('mock.ecommerce.customers');
++    Route::get('/customers/{customer}', [CustomerMockController::class, 'show'])->name('mock.ecommerce.customers.show');
++
+     Route::get('/customers/{customer}/orders', [CustomerMockController::class, 'orders'])->name('mock.ecommerce.customers.orders');
+     Route::post('/customers/{customer}/orders', [CustomerMockController::class, 'placeOrder'])->name('mock.ecommerce.customers.place-order');
+ 
++    Route::get('/customers/{customer}/help-desk', [HelpDeskMockController::class, 'show'])->name('mock.ecommerce.customers.help-desk');
++    Route::post('/customers/{customer}/help-desk/cases', [HelpDeskMockController::class, 'submitCase'])->name('mock.ecommerce.customers.help-desk.cases');
++    Route::patch('/customers/{customer}/help-desk/satisfaction', [HelpDeskMockController::class, 'submitSatisfaction'])->name('mock.ecommerce.customers.help-desk.satisfaction');
++
+     Route::get('/catalog', [CatalogMockController::class, 'index'])->name('mock.ecommerce.catalog');
+-    Route::get('/orders/{order}', [OrderMockController::class, 'show'])->name('mock.ecommerce.orders.show');
+-    Route::post('/orders/{order}/request-support', [OrderMockController::class, 'requestSupport'])->name('mock.ecommerce.orders.request-support');
+ });
