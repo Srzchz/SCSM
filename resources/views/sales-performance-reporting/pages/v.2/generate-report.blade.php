@@ -1,12 +1,6 @@
 {{--
-    resources/views/sales-performance-reporting/pages/generate-report.blade.php
-    Route: GET /generate-report -> GenerateReportController@index
-
-    CHANGED: the "Region" column used to always render, showing "—" for
-    every row when Report Type was Sales by Region/Product (since those
-    rows don't have a meaningful per-row region value — the region/product
-    name IS the row already). It's now hidden entirely unless viewing
-    Sales by Rep, where it's actually informative.
+    resources/views/pages/generate-report.blade.php
+    Route: GET /generate-report -> App\Http\Controllers\GenerateReportController@index
 --}}
 @extends('layouts.app')
 
@@ -147,7 +141,7 @@
             <thead>
                 <tr>
                     <th id="reportCol1">Rep</th>
-                    <th id="reportCol2Header">Region</th>
+                    <th>Region</th>
                     <th>Actual</th>
                     <th>Target</th>
                     <th>Progress</th>
@@ -187,12 +181,6 @@
         document.getElementById('reportResults').style.display = '';
         document.getElementById('reportEmptyState').style.display = 'none';
 
-        // The Region column is only meaningful for Sales by Rep (each rep
-        // belongs to one region). For Sales by Region/Product it would
-        // just repeat "—" on every row, so it's hidden instead.
-        const showRegionColumn = f.reportType === 'rep';
-        document.getElementById('reportCol2Header').style.display = showRegionColumn ? '' : 'none';
-
         // Guard: Report Type is required to know which dataset/columns to show.
         if(!f.reportType){
             document.getElementById('reportTitle').textContent = 'Sales Report';
@@ -224,15 +212,14 @@
         }
 
         const body = document.getElementById('reportTableBody');
-        const colspan = showRegionColumn ? 6 : 5;
         if(rows.length === 0){
-            body.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; color:var(--muted); padding:30px 0;">No results match the current filters.</td></tr>`;
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:30px 0;">No results match the current filters.</td></tr>`;
             return;
         }
         body.innerHTML = rows.map(r => `
             <tr>
                 <td>${r.name}</td>
-                ${showRegionColumn ? `<td>${r.region}</td>` : ''}
+                <td>${r.region}</td>
                 <td>${fmt(r.actual)}</td>
                 <td>${fmt(r.target)}</td>
                 <td>
@@ -263,9 +250,7 @@
         const rows = Array.from(document.querySelectorAll('#reportTableBody tr')).map(tr =>
             Array.from(tr.children).map(td => td.innerText.replace(/\n/g,' ').trim())
         );
-        const headers = Array.from(document.querySelectorAll('.data-table thead th'))
-            .filter(th => th.style.display !== 'none')
-            .map(th => th.innerText);
+        const headers = Array.from(document.querySelectorAll('.data-table thead th')).map(th => th.innerText);
         const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
         const blob = new Blob([csv], { type:'text/csv' });
         const link = document.createElement('a');

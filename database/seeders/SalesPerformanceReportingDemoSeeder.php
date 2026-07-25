@@ -54,8 +54,22 @@ class SalesPerformanceReportingDemoSeeder extends Seeder
         }
 
         $this->seedOrders($reps, $productIds, $customerIds);
-        $this->seedTargets($reps, $regionIds, $productIds);
 
+        // IMPORTANT: don't just target the 6 reps this seeder created.
+        // If sales_orders already had historical data before this seeder
+        // ran (as logged: "sales_orders already has data — skipping order
+        // generation"), those orders are attributed to whichever reps
+        // whatever seeder created them — almost certainly not these demo
+        // ones. Targets need to cover every sales rep that actually has
+        // order volume, or actual_amount will sync to 0 for all of them.
+        $allReps = $this->allRepsWithUserAccounts();
+
+        $this->seedTargets($allReps, $regionIds, $productIds);
+
+        $this->command?->info('Targeted ' . count($allReps) . ' sales rep(s) across ' . count($regionIds) . ' region(s).');
+        $this->command?->info('rep_targets rows: ' . DB::table('sales_performance_reporting_rep_targets')->count());
+        $this->command?->info('region_targets rows: ' . DB::table('sales_performance_reporting_region_targets')->count());
+        $this->command?->info('product_targets rows: ' . DB::table('sales_performance_reporting_product_targets')->count());
         $this->command?->info('Sales Performance Reporting demo data seeded.');
     }
 
@@ -113,6 +127,19 @@ class SalesPerformanceReportingDemoSeeder extends Seeder
         }
 
         return $reps;
+    }
+
+    /**
+     * @return array<int, array{sales_rep_id:int,user_id:int,region_id:int,name:string}>
+     */
+    private function allRepsWithUserAccounts(): array
+    {
+        return DB::table('sales_reps')
+            ->whereNotNull('user_id')
+            ->whereNotNull('region_id')
+            ->get(['id as sales_rep_id', 'user_id', 'region_id', 'name'])
+            ->map(fn ($row) => (array) $row)
+            ->all();
     }
 
     private function seedOrders(array $reps, array $productIds, array $customerIds): void

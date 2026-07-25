@@ -57,6 +57,10 @@ class RevenueForecastController extends Controller
         $avgEoqForecast = ($linearEoq + $wmaEoq) / 2;
         $pctVsLastQuarter = round((($avgEoqForecast * 3 - $lastClosedQuarterActual) / $lastClosedQuarterActual) * 100, 1);
 
+        [$linearExplanation, $wmaExplanation] = $this->buildExplanations(
+            $linearLine, $wmaLine, $todayIdx, $linearEoq, $wmaEoq, $period
+        );
+
         return view('sales-performance-reporting.pages.revenue-forecast', [
             'active'           => 'revenue-forecast',
             'months'           => $months,
@@ -70,6 +74,63 @@ class RevenueForecastController extends Controller
             'pctVsLastQuarter' => $pctVsLastQuarter,
             'daysRemaining'    => $daysRemaining,
             'period'           => $period,
+            'linearExplanation' => $linearExplanation,
+            'wmaExplanation'    => $wmaExplanation,
         ]);
+    }
+
+    /**
+     * Plain-language read-out of what each method is showing, so the chart
+     * doesn't require someone to already know how regression/WMA work.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function buildExplanations(array $linearLine, array $wmaLine, int $todayIdx, float $linearEoq, float $wmaEoq, string $period): array
+    {
+        $linearForecastOnly = array_values(array_filter(
+            array_slice($linearLine, $todayIdx + 1),
+            fn ($v) => $v !== null
+        ));
+        $wmaForecastOnly = array_values(array_filter(
+            array_slice($wmaLine, $todayIdx + 1),
+            fn ($v) => $v !== null
+        ));
+
+        // The regression line has a constant slope, so any two consecutive
+        // forecast points reveal the monthly rate of change.
+        $slope = count($linearForecastOnly) >= 2
+            ? $linearForecastOnly[1] - $linearForecastOnly[0]
+            : 0;
+
+        $direction = $slope > 0 ? 'trending upward' : ($slope < 0 ? 'trending downward' : 'holding roughly flat');
+
+        $linearExplanation = sprintf(
+            "Based on the last 12 months, revenue is %s by about ₱%s per month. ".
+            "If this trend continues, %s is projected to close near ₱%sK.",
+            $direction,
+            number_format(abs($slope) / 1000, 1) . 'K',
+            $period,
+            number_format($linearEoq / 1000, 1)
+        );
+
+        $diffPct = $linearEoq != 0 ? round((($wmaEoq - $linearEoq) / $linearEoq) * 100, 1) : 0;
+
+        if (abs($diffPct) < 2) {
+            $comparison = "tracking closely with the long-term trend line";
+        } elseif ($diffPct > 0) {
+            $comparison = "running " . abs($diffPct) . "% above the trend line, suggesting recent momentum is stronger than the overall trend";
+        } else {
+            $comparison = "running " . abs($diffPct) . "% below the trend line, suggesting recent momentum has cooled compared to the overall trend";
+        }
+
+        $wmaExplanation = sprintf(
+            "This method leans on the most recent 3 months (weighted so the newest counts most), so it reacts faster to short-term swings. ".
+            "It's currently %s — projecting ₱%sK by the end of %s.",
+            $comparison,
+            number_format($wmaEoq / 1000, 1),
+            $period
+        );
+
+        return [$linearExplanation, $wmaExplanation];
     }
 }

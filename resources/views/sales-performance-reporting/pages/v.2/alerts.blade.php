@@ -135,6 +135,49 @@
         </div>
     </div>
 
+    {{-- ALERT SETTINGS — these thresholds drive AlertGenerationService directly --}}
+    <section class="card panel">
+        <h2>Alert settings</h2>
+
+        <div class="settings-row">
+            <div>
+                <div class="settings-title">Target breach alert</div>
+                <div class="settings-sub">Notify when attainment drops below threshold</div>
+            </div>
+            <div class="select mini-select" id="selThreshold">
+                <button type="button" class="select-btn" onclick="toggleSelect(this)">
+                    <span class="select-value">Below {{ $settings->target_breach_threshold_pct }}%</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+                <div class="select-menu">
+                    @foreach ([60, 70, 80, 90] as $threshold)
+                        <div class="select-option {{ $settings->target_breach_threshold_pct == $threshold ? 'selected' : '' }}" data-value="{{ $threshold }}">Below {{ $threshold }}%</div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-row">
+            <div>
+                <div class="settings-title">Inventory trigger</div>
+                <div class="settings-sub">Alert when a product trends +{{ $settings->inventory_trigger_growth_pct }}% MoM for {{ $settings->inventory_trigger_months }}+ months</div>
+            </div>
+            <button class="toggle-switch {{ $settings->inventory_trigger_enabled ? 'active' : 'inactive' }}" onclick="toggleSetting(this)">{{ $settings->inventory_trigger_enabled ? 'Active' : 'Inactive' }}</button>
+        </div>
+
+        <div class="settings-row">
+            <div>
+                <div class="settings-title">Forecast deviation</div>
+                <div class="settings-sub">Alert when actuals deviate from forecast by &plusmn;{{ $settings->forecast_deviation_pct }}%</div>
+            </div>
+            <button class="toggle-switch {{ $settings->forecast_deviation_enabled ? 'active' : 'inactive' }}" onclick="toggleSetting(this)">{{ $settings->forecast_deviation_enabled ? 'Active' : 'Inactive' }}</button>
+        </div>
+        <p style="color:var(--muted); font-size:0.8rem; margin:14px 0 0;">
+            Note: these toggles update the display immediately but aren't wired to a save route yet —
+            wire a <code>POST /sales-performance-reporting/alert-settings</code> route to
+            <code>AlertSetting::current()->update(...)</code> if you want them to persist.
+        </p>
+    </section>
 </div>
 @endsection
 
@@ -153,8 +196,10 @@
         });
     });
 
+    // ---------- Threshold dropdown ----------
+    initSelect(document.getElementById('selThreshold'));
     // toggleSetting()/toggleSelect()/openModal()/closeModal() are defined
-    // globally in the shared scripts partial (used by other pages too).
+    // globally in the shared scripts partial.
 
     // ---------- Alert detail popup ----------
     let currentAlertCard = null;

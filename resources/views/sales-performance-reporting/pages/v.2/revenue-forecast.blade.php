@@ -60,18 +60,6 @@
             <span><span class="legend-dot" style="background:#7ED8FF"></span>Weighted Moving Average</span>
             <span><span class="legend-dot" style="background:#b7aef0"></span>Today</span>
         </div>
-
-        {{-- Plain-language read-out of what each line means, side by side --}}
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:22px;">
-            <div class="card panel" style="padding:20px 22px; background:var(--bg-lavender); box-shadow:none;">
-                <h2 style="font-size:0.92rem; margin-bottom:8px;">&#128200; Linear Regression &mdash; what this means</h2>
-                <p style="font-size:0.85rem; color:var(--ink-soft); margin:0; line-height:1.55;">{{ $linearExplanation }}</p>
-            </div>
-            <div class="card panel" style="padding:20px 22px; background:var(--bg-lavender); box-shadow:none;">
-                <h2 style="font-size:0.92rem; margin-bottom:8px;">&#128202; Weighted Moving Average &mdash; what this means</h2>
-                <p style="font-size:0.85rem; color:var(--ink-soft); margin:0; line-height:1.55;">{{ $wmaExplanation }}</p>
-            </div>
-        </div>
     </section>
 </div>
 @endsection

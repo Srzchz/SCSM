@@ -1,10 +1,6 @@
 {{--
-    resources/views/sales-performance-reporting/pages/targets.blade.php
-    Route: GET /sales-performance-reporting/targets -> TargetsController@index
-
-    CHANGED: Region Attainment table was missing Actual/Quota columns
-    (only had Region + a progress bar) — added them to match the Rep and
-    Product tables for consistency.
+    resources/views/pages/targets.blade.php
+    Route: GET /targets -> App\Http\Controllers\TargetsController@index
 --}}
 @extends('layouts.app')
 
@@ -56,46 +52,45 @@
         </div>
     </div>
 
-    <section class="card table-panel" style="padding:26px 30px;">
-        <h2>Rep Attainment</h2>
-        <table class="data-table target-table">
-            <thead>
-                <tr><th>Rep</th><th>Actual</th><th>Quota</th><th>Attainment</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-                @foreach ($repTargets as $t)
-                    <tr data-status="{{ $t->attainmentStatus() }}">
-                        <td>{{ $t->rep->name }}</td>
-                        <td>{{ $t->actualFormatted() }}</td>
-                        <td>{{ $t->targetFormatted() }}</td>
-                        <td><div class="progress-track"><div class="progress-fill {{ $t->attainmentStatus() }}" style="width:{{ $t->progressWidth() }}%"></div></div></td>
-                        <td><span class="status-pill {{ $t->attainmentStatus() }}">{{ $t->attainmentLabel() }}</span></td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-        <p class="empty-msg" style="display:none; text-align:center; color:var(--muted); padding:20px 0; margin:0;">No rows match this filter.</p>
-    </section>
+    <section class="content-grid">
+        <div class="card table-panel" style="padding:26px 30px;">
+            <h2>Rep Attainment</h2>
+            <table class="data-table target-table">
+                <thead>
+                    <tr><th>Rep</th><th>Actual</th><th>Quota</th><th>Attainment</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($repTargets as $t)
+                        <tr data-status="{{ $t->attainmentStatus() }}">
+                            <td>{{ $t->rep->name }}</td>
+                            <td>{{ $t->actualFormatted() }}</td>
+                            <td>{{ $t->targetFormatted() }}</td>
+                            <td><div class="progress-track"><div class="progress-fill {{ $t->attainmentStatus() }}" style="width:{{ $t->progressWidth() }}%"></div></div></td>
+                            <td><span class="status-pill {{ $t->attainmentStatus() }}">{{ $t->attainmentLabel() }}</span></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <p class="empty-msg" style="display:none; text-align:center; color:var(--muted); padding:20px 0; margin:0;">No rows match this filter.</p>
+        </div>
 
-    <section class="card table-panel" style="padding:26px 30px;">
-        <h2>Region Attainment</h2>
-        <table class="data-table target-table">
-            <thead>
-                <tr><th>Region</th><th>Actual</th><th>Quota</th><th>Attainment</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-                @foreach ($regionTargets as $t)
-                    <tr data-status="{{ $t->attainmentStatus() }}">
-                        <td>{{ $t->region->name }}</td>
-                        <td>{{ $t->actualFormatted() }}</td>
-                        <td>{{ $t->targetFormatted() }}</td>
-                        <td><div class="progress-track"><div class="progress-fill {{ $t->attainmentStatus() }}" style="width:{{ $t->progressWidth() }}%"></div></div></td>
-                        <td><span class="status-pill {{ $t->attainmentStatus() }}">{{ $t->attainmentLabel() }}</span></td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-        <p class="empty-msg" style="display:none; text-align:center; color:var(--muted); padding:20px 0; margin:0;">No rows match this filter.</p>
+        <div class="card table-panel" style="padding:26px 30px;">
+            <h2>Region Attainment</h2>
+            <table class="data-table target-table">
+                <thead>
+                    <tr><th>Region</th><th>Attainment</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($regionTargets as $t)
+                        <tr data-status="{{ $t->attainmentStatus() }}">
+                            <td>{{ $t->region->name }}</td>
+                            <td><div class="progress-track" style="width:100%;"><div class="progress-fill {{ $t->attainmentStatus() }}" style="width:{{ $t->progressWidth() }}%"></div></div></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <p class="empty-msg" style="display:none; text-align:center; color:var(--muted); padding:20px 0; margin:0;">No rows match this filter.</p>
+        </div>
     </section>
 
     <section class="card table-panel">

@@ -5,7 +5,6 @@ namespace App\Modules\SalesPerformanceReporting\Controllers;
 use App\Http\Controllers\Controller;
 
 use App\Modules\SalesPerformanceReporting\Models\Alert;
-use App\Modules\SalesPerformanceReporting\Models\AlertSetting;
 use App\Modules\SalesPerformanceReporting\Services\AlertGenerationService;
 use App\Modules\SalesPerformanceReporting\Services\PeriodHelper;
 
@@ -34,7 +33,6 @@ class AlertsController extends Controller
                 'positive' => $counts->get('positive', 0),
                 'info'     => $counts->get('info', 0),
             ],
-            'settings' => AlertSetting::current(),
         ]);
     }
 
