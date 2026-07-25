@@ -6,22 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class Region extends Model
 {
-    public $timestamps = false; // table only has created_at, populated by DB default
+    protected $table = 'regions';
+
+    public $timestamps = false;
 
     protected $fillable = ['name'];
 
-    public function users()
+    public function reps()
     {
-        return $this->hasMany(User::class);
-    }
-
-    public function salesReps()
-    {
-        return $this->hasMany(SalesRep::class);
-    }
-
-    public function regionTarget(string $period)
-    {
-        return $this->hasOne(RegionTarget::class)->where('period', $period);
+        return $this->hasMany(SalesRep::class, 'region_id');
     }
 }
