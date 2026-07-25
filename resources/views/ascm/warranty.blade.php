@@ -42,9 +42,6 @@
             <p class="section-hint">Claims, coverage, and decisions.</p>
         </div>
 
-        <div class="page-header-actions">
-            <button type="button" class="btn btn-primary" aria-label="New claim">New Claim</button>
-        </div>
     </div>
 
     @if (session('status'))
