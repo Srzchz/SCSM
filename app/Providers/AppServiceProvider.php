@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Modules\SalesPerformanceReporting\Models\Alert;
-use App\Modules\SalesPerformanceReporting\Models\User;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,19 +18,14 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
-     *
-     * NOTE: User is this module's local copy of a table (`users`) flagged as
-     * shared/core in the CHANGE LOG. Once the canonical User model's
-     * location is confirmed across teams, this import should point there
-     * instead of at this module's own copy.
      */
     public function boot(): void
     {
         View::composer('sales-performance-reporting.layouts.app', function ($view) {
-            // Swap this for auth()->user() once real login is wired up.
-            $currentUser = User::with(['region', 'settings'])
-                ->where('role', 'manager')
-                ->first() ?? User::with(['region', 'settings'])->first();
+            // Real login is wired up now — this used to fake a "logged in
+            // as the first manager" user via App\Modules\SalesPerformanceReporting\Models\User,
+            // a class that didn't actually exist anywhere in the codebase.
+            $currentUser = auth()->user()?->loadMissing(['region', 'settings']);
 
             $view->with([
                 'alertCount' => Alert::where('is_read', false)->count(),

@@ -25,6 +25,7 @@ class WarrantyClaim extends Model
         'estimated_amount',
         'approved_amount',
         'status',
+        'assigned_to',
         'decision_by',
         'decision_at',
     ];
@@ -64,6 +65,11 @@ class WarrantyClaim extends Model
     public function case(): BelongsTo
     {
         return $this->belongsTo(SupportCase::class, 'case_id');
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     public function decisionBy(): BelongsTo

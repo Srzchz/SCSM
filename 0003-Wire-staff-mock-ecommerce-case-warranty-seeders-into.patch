@@ -1,0 +1,70 @@
+From fcbfb801454e689bfe1b19b37cc8ebcdbf9b0cfa Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.com>
+Date: Sun, 26 Jul 2026 11:17:38 +0000
+Subject: [PATCH] Wire staff/mock-ecommerce/case/warranty seeders into db:seed
+
+Folds the seeders the handoff had you running manually
+(StaffUserSeeder, CaseManagementSeeder, WarrantySeeder) plus
+MockEcommerceSeeder into DatabaseSeeder::run(), in dependency order:
+
+- StaffUserSeeder before CaseManagementSeeder/WarrantySeeder, since both
+  pull from User::all() to assign a random staff member.
+- MockEcommerceSeeder anywhere after Product/Customer/Order exist -- it's
+  self-contained (firstOrCreate on its own demo customer/order), doesn't
+  feed into or depend on anything around it.
+- CaseManagementSeeder before WarrantySeeder, since WarrantySeeder now
+  links claims back to existing cases for the same customer where one
+  fits.
+
+'php artisan db:seed' (after migrate:fresh) now does everything the
+handoff's four separate commands used to.
+---
+ database/seeders/DatabaseSeeder.php | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/database/seeders/DatabaseSeeder.php b/database/seeders/DatabaseSeeder.php
+index ad0260e..799e3da 100644
+--- a/database/seeders/DatabaseSeeder.php
++++ b/database/seeders/DatabaseSeeder.php
+@@ -7,6 +7,22 @@
+ 
+ class DatabaseSeeder extends Seeder
+ {
++    /**
++     * Order matters below, past the point ProductSeeder/CustomerSeeder/etc.
++     * finish:
++     *
++     * - StaffUserSeeder before CaseManagementSeeder/WarrantySeeder -- both
++     *   pull from User::all() to pick a random assignee, and want staff to
++     *   already exist rather than seeding zero-assignment demo data.
++     * - MockEcommerceSeeder can run any time after Product/Customer/Order
++     *   exist -- it only firstOrCreate()s its own standalone demo
++     *   customer/order for the mock e-commerce trigger form, so it doesn't
++     *   depend on or feed into the seeders around it.
++     * - CaseManagementSeeder before WarrantySeeder -- WarrantySeeder links
++     *   claims back to existing cases for the same customer where one
++     *   fits (mirrors what CaseController::store does for real requests),
++     *   so it needs cases to already exist to find a match.
++     */
+     public function run(): void
+     {
+         // Mocked default user — until the real Users/Auth module is wired up,
+@@ -20,10 +36,14 @@ public function run(): void
+             ProductSeeder::class,
+             CustomerSeeder::class,
+             OrderSeeder::class,
+-            HistoricalSalesOrderSeeder::class, 
++            HistoricalSalesOrderSeeder::class,
+             PricingRuleSeeder::class,
+             SalesQuotationSeeder::class,
+             SalesOrderSeeder::class,
++            StaffUserSeeder::class,
++            MockEcommerceSeeder::class,
++            CaseManagementSeeder::class,
++            WarrantySeeder::class,
+         ]);
+     }
+ }
+-- 
+2.43.0
+

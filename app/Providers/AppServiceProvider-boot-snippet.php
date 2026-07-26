@@ -6,23 +6,19 @@
  * so the sidebar badge and the Account/Settings overlays have real data
  * on every page without each controller needing to pass it manually.
  *
- * NOTE: User is this module's local copy of a table (`users`) flagged as
- * shared/core in the CHANGE LOG below. Once the canonical User model's
- * location is confirmed across teams, this import should point there
- * instead of at this module's own copy.
+ * UPDATE: real login is now wired up (see routes/auth.php,
+ * AuthController). This previously faked a "logged in as the first
+ * manager" user via a class, App\Modules\SalesPerformanceReporting\Models\User,
+ * that didn't actually exist anywhere in the codebase — that's fixed below.
  */
 
 use App\Modules\SalesPerformanceReporting\Models\Alert;
-use App\Modules\SalesPerformanceReporting\Models\User;
 use Illuminate\Support\Facades\View;
 
 public function boot(): void
 {
     View::composer('sales-performance-reporting.layouts.app', function ($view) {
-        // Swap this for auth()->user() once real login is wired up.
-        $currentUser = User::with(['region', 'settings'])
-            ->where('role', 'manager')
-            ->first() ?? User::with(['region', 'settings'])->first();
+        $currentUser = auth()->user()?->loadMissing(['region', 'settings']);
 
         $view->with([
             'alertCount'  => Alert::where('is_read', false)->count(),

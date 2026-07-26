@@ -174,18 +174,6 @@
             chartResizeTimer = setTimeout(refreshAllCharts, 250);
         });
     </script>
-    <script>
-        
-        (function () {
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('loggedOut') === '1') {
-                alert('You have been logged out.');
-                params.delete('loggedOut');
-                const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-                window.history.replaceState({}, '', clean);
-            }
-        })();
-    </script>
 
     @stack('scripts')
 </body>

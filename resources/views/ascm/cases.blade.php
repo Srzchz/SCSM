@@ -79,6 +79,21 @@
                     <button type="submit" class="btn btn-primary">Update</button>
                 </form>
 
+                <form class="detail-actions" id="panel-case-assign-form" method="POST" action="#">
+                    @csrf
+                    @method('PATCH')
+                    <div class="field-inline">
+                        <label class="filter-label" for="panel-case-assign">Assigned to</label>
+                        <select id="panel-case-assign" name="assigned_to" class="input">
+                            <option value="">Unassigned</option>
+                            @foreach ($assignableUsers as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                </form>
+
                 <div class="tabs" role="tablist" aria-label="Case tabs">
                     <button type="button" class="tab tab-active" role="tab" aria-selected="true" data-tab="timeline">Timeline</button>
                     <button type="button" class="tab" role="tab" aria-selected="false" data-tab="attachments">Attachments</button>
@@ -192,6 +207,7 @@
                             <th>Category</th>
                             <th>Priority</th>
                             <th>Status</th>
+                            <th>Assigned</th>
                             <th>Activity</th>
                             <th style="width:56px;text-align:right;">Actions</th>
                         </tr>
@@ -224,6 +240,7 @@
                                 <td>{{ $case->category }}</td>
                                 <td><span class="pill {{ $priorityPill[$case->priority] ?? 'pill-gray' }}">{{ ucfirst($case->priority) }}</span></td>
                                 <td><span class="pill {{ $statusPill[$case->status] ?? 'pill-gray' }}">{{ ucfirst($case->status) }}</span></td>
+                                <td>{{ $case->assignee->name ?? 'Unassigned' }}</td>
                                 <td>
                                     <div class="cell-primary">SLA {{ $case->sla_due_at?->format('M j, Y') ?? '—' }}</div>
                                     <div class="cell-sub">Updated {{ $case->updated_at->diffForHumans() }}</div>
@@ -240,6 +257,7 @@
                                                     data-case-pk="{{ $case->id }}"
                                                     data-case-id="{{ $case->case_number }}"
                                                     data-case-status="{{ $case->status }}"
+                                                    data-case-assigned="{{ $case->assigned_to }}"
                                                     data-case-meta="{{ $caseMeta }}"
                                                     data-case-payload='{!! $casePayload !!}'>View details</button>
 
@@ -249,6 +267,7 @@
                                                     data-case-pk="{{ $case->id }}"
                                                     data-case-id="{{ $case->case_number }}"
                                                     data-case-status="{{ $case->status }}"
+                                                    data-case-assigned="{{ $case->assigned_to }}"
                                                     data-case-meta="{{ $caseMeta }}"
                                                     data-case-payload='{!! $casePayload !!}'>Add note</button>
 
@@ -273,7 +292,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:28px;">
+                                <td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:28px;">
                                     No cases yet — once your seeder runs, they'll show up here.
                                 </td>
                             </tr>
@@ -447,6 +466,8 @@
         const closeBtn = document.getElementById('case-detail-close');
         const statusForm = document.getElementById('panel-case-status-form');
         const statusSelect = document.getElementById('panel-case-status');
+        const assignForm = document.getElementById('panel-case-assign-form');
+        const assignSelect = document.getElementById('panel-case-assign');
         const noteForm = document.getElementById('panel-case-note-form');
         const noteTextarea = noteForm.querySelector('textarea[name="body"]');
         const noteCancelBtn = document.getElementById('panel-case-note-cancel');
@@ -500,6 +521,7 @@
             const id = btn.getAttribute('data-case-id') || '—';
             const meta = btn.getAttribute('data-case-meta') || '';
             const status = btn.getAttribute('data-case-status') || 'pending';
+            const assignedTo = btn.getAttribute('data-case-assigned') || '';
 
             let payload = {};
             try { payload = JSON.parse(btn.getAttribute('data-case-payload') || '{}'); } catch (e) { payload = {}; }
@@ -510,6 +532,8 @@
 
             if (statusSelect) statusSelect.value = status;
             if (statusForm) statusForm.action = '{{ url('/ascm/cases') }}/' + pk + '/status' + (currentQuery ? ('?' + currentQuery) : '');
+            if (assignSelect) assignSelect.value = assignedTo;
+            if (assignForm) assignForm.action = '{{ url('/ascm/cases') }}/' + pk + '/assign' + (currentQuery ? ('?' + currentQuery) : '');
             if (noteForm) noteForm.action = '{{ url('/ascm/cases') }}/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
 
             renderTimeline('panel-case-timeline', notes, 'No notes yet.');

@@ -4,10 +4,12 @@ namespace App\Modules\ASCM\Controllers;
 
 use App\Http\Controllers\Controller;
 
+use App\Models\User;
 use App\Modules\ASCM\Models\CaseNote;
 use App\Modules\ASCM\Models\CaseStatusHistory;
 use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
+use App\Modules\ASCM\Models\WarrantyClaimNote;
 use App\Modules\ASCM\Models\WarrantyRegistration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -175,6 +177,61 @@ class CaseController extends Controller
         ]);
 
         return $this->backToCases("Note added to {$case->case_number}.");
+    }
+
+    /**
+     * Reassigns who's currently working the case. `assigned_to` is
+     * nullable so a case can be explicitly unassigned again.
+     *
+     * A case can have several linked warranty claims (SupportCase::
+     * warrantyClaims is hasMany). Reassigning the case cascades the same
+     * assignee down to every one of them, on the assumption that whoever
+     * owns the case owns the claims opened under it too -- see the
+     * matching cascade the other direction in
+     * WarrantyController::assign.
+     */
+    public function assign(Request $request, SupportCase $case): RedirectResponse
+    {
+        $data = $request->validate([
+            'assigned_to' => 'nullable|integer|exists:users,id',
+        ]);
+
+        $from = $case->assigned_to;
+        $to = $data['assigned_to'] ?? null;
+
+        if ($from == $to) {
+            return $this->backToCases("Case {$case->case_number} is already assigned as requested.");
+        }
+
+        $case->assigned_to = $to;
+        $case->save();
+
+        $toName = $to ? (User::find($to)?->name ?? 'someone') : null;
+
+        CaseNote::create([
+            'case_id' => $case->id,
+            'author_id' => auth()->id(),
+            'entry_type' => 'assignment',
+            'visibility' => 'internal',
+            'title' => 'Assignment updated',
+            'body' => $toName ? "Case assigned to {$toName}." : 'Case unassigned.',
+        ]);
+
+        foreach ($case->warrantyClaims as $claim) {
+            $claim->assigned_to = $to;
+            $claim->save();
+
+            WarrantyClaimNote::create([
+                'warranty_claim_id' => $claim->id,
+                'author_id' => auth()->id(),
+                'note_type' => 'assignment',
+                'body' => $toName
+                    ? "Assignment synced from linked case {$case->case_number}: assigned to {$toName}."
+                    : "Assignment synced from linked case {$case->case_number}: unassigned.",
+            ]);
+        }
+
+        return $this->backToCases($toName ? "Case {$case->case_number} assigned to {$toName}." : "Case {$case->case_number} unassigned.");
     }
 
     public function escalate(SupportCase $case): RedirectResponse
