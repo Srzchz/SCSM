@@ -4,6 +4,7 @@ namespace App\Modules\PurchaseBehavior\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Support\CustomerActivityService;
 use App\Support\CustomerInsightService;
 
 class PurchaseBehaviorController extends Controller
@@ -45,6 +46,8 @@ class PurchaseBehaviorController extends Controller
             'series2025' => [180, 210, 230, 260, 300, 340, 380, 420],
             'tableCustomers' => $tableCustomers,
             'insights' => CustomerInsightService::segments(),
+            'followUps' => CustomerActivityService::upcomingFollowUps(),
+            'activities' => CustomerActivityService::recentActivities(),
         ]);
     }
 }

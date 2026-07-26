@@ -7,6 +7,7 @@ use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
 use App\Modules\CRM\Models\CustomerInsight;
 use App\Support\CustomerInsightService;
+use App\Support\CustomerActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -40,6 +41,8 @@ class DashboardController extends Controller
 
         [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues] = $this->loadOverview();
         $insights = CustomerInsightService::segments();
+        $followUps = CustomerActivityService::upcomingFollowUps();
+        $activities = CustomerActivityService::recentActivities();
 
         return view('spa', compact(
             'sections',
@@ -50,6 +53,8 @@ class DashboardController extends Controller
             'ovGrowthLabels',
             'ovGrowthValues',
             'insights',
+            'followUps',
+            'activities',
         ));
     }
 
