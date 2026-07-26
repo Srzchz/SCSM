@@ -126,6 +126,27 @@ class OrderSeeder extends Seeder
         });
 
         $this->refreshCustomerInsights();
+        $this->syncQuotationsFromSeededOrders();
+    }
+
+    /**
+     * OrderObserver/OrderItemObserver *should* auto-generate a quotation
+     * for each order as it's created above, but relying on model events
+     * firing correctly through hundreds of rapid-fire creates in a single
+     * seeder run is fragile. Doing an explicit pass here guarantees every
+     * seeded order ends up with a matching Sales Quotation, regardless of
+     * event timing — same result you'd get from manually running
+     * `php artisan quotations:sync-from-orders` afterward, just automatic.
+     */
+    private function syncQuotationsFromSeededOrders(): void
+    {
+        $service = app(\App\Modules\SalesOrderManagement\Services\AutoQuotationService::class);
+
+        Order::with('items')->chunkById(200, function ($orders) use ($service) {
+            foreach ($orders as $order) {
+                $service->syncFromOrder($order);
+            }
+        });
     }
 
     /**

@@ -211,7 +211,7 @@ function QuotationsTab() {
   <div class="panel">
     <div class="panel-hd">
       <input id="searchBox" class="search" placeholder="Search quotations…" value="${state.filterText}">
-      <button class="btn primary" id="newQuoteBtn">+ New Quotation</button>
+      <span class="hint" title="Quotations are created automatically when a customer places an order in the CRM.">🔄 Synced from CRM orders</span>
     </div>
     <table>
       <thead><tr><th>Quotation</th><th>Customer</th><th>Date</th><th>Valid Until</th><th>Total</th><th>Status</th><th></th></tr></thead>
