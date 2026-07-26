@@ -124,11 +124,10 @@ class CaseController extends Controller
     }
 
     /**
-     * All four actions below redirect back to the dashboard route with
-     * ?section=cases so the page lands back on the Cases tab instead of
-     * defaulting to Overview. There's no auth system wired up yet, so
-     * author_id/changed_by are left null (nullable on every table) rather
-     * than faked.
+     * All four actions below redirect back to the real cases list at
+     * ascm.cases, carrying forward whatever filter/page params were on the
+     * request. author_id/changed_by come from auth()->id(), which is null
+     * for a guest request (nullable on every table) rather than faked.
      */
     public function updateStatus(Request $request, SupportCase $case): RedirectResponse
     {
@@ -305,10 +304,6 @@ class CaseController extends Controller
             fn ($v) => $v !== null && $v !== ''
         );
 
-        $params['section'] = 'cases';
-
-        $url = route('dashboard', $params) . '#cases';
-
-        return redirect($url)->with('status', $message);
+        return redirect()->route('ascm.cases', $params)->with('status', $message);
     }
 }
