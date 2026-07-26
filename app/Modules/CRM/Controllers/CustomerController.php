@@ -5,8 +5,8 @@ namespace App\Modules\CRM\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Modules\CRM\Models\CustomerInsight;
-use App\Support\CustomerInsightService;
 use App\Support\CustomerActivityService;
+use App\Support\CustomerInsightService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +16,7 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         return view('customer-relationship-management.index', [
-            'tableCustomers' => $this->allCustomersTable(),
+            'tableCustomers' => $this->paginatedCustomersTable(),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
             'activities' => CustomerActivityService::recentActivities(),
@@ -139,6 +139,11 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * Unpaginated full list — used by pages that show a short/ranked
+     * subset (e.g. profile page's bottom table) rather than the primary
+     * browsable "All Customers" list.
+     */
     protected function allCustomersTable()
     {
         return Customer::withCount('orders')
@@ -168,12 +173,43 @@ class CustomerController extends Controller
             });
     }
 
+    /**
+     * Paginated version of the same table, used for the primary "All
+     * Customers" browsable list (index()). Query columns/values match
+     * allCustomersTable() exactly — kept as two methods rather than one
+     * flexible one, since paginate() and get() return incompatible types
+     * and mixing them behind one signature gets confusing fast.
+     */
+    protected function paginatedCustomersTable(int $perPage = 10)
+    {
+        return Customer::withCount('orders')
+            ->withSum('orders', 'grand_total')
+            ->withMax('orders', 'created_at')
+            ->with('insight')
+            ->orderByDesc('orders_sum_grand_total')
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(function ($c) {
+                $lastOrderDate = $c->orders_max_created_at ? \Carbon\Carbon::parse($c->orders_max_created_at) : null;
+                $totalSpent = (float) ($c->orders_sum_grand_total ?? 0);
+
+                return [
+                    'id' => $c->customer_id,
+                    'name' => $c->full_name,
+                    'email' => $c->email,
+                    'orders' => $c->orders_count,
+                    'spent' => '₱' . number_format($totalSpent, 2),
+                    'clv' => '₱' . number_format($totalSpent, 2),
+                    'last' => $lastOrderDate?->format('M j, Y') ?? '—',
+                    'segment' => Customer::computeSegment($c->orders_count, $totalSpent, $lastOrderDate),
+                ];
+            });
+    }
+
     protected function buildCustomerArray(int $id): array
     {
         $c = Customer::with(['orders', 'communicationLogs.chatMessages', 'insight'])->findOrFail($id);
 
-        // created_at stands in for "order date" — the canonical orders
-        // table doesn't carry a separate order-date column.
         $orders = $c->orders->sortByDesc('created_at')->values();
 
         $realTotalOrders = $orders->count();
@@ -198,14 +234,8 @@ class CustomerController extends Controller
             'total_spent' => '₱' . number_format($realTotalSpent, 2),
             'avg_order_value' => '₱' . number_format($realAvgOrderValue, 0),
             'last_ordered' => $lastOrderDate?->format('M j, Y') ?? '—',
-            // CLV = lifetime spend to date, same definition as
-            // allCustomersTable() and DashboardController::loadOverview().
-            // Previously read the always-empty CustomerInsight.clv column.
             'clv' => '₱' . number_format($realTotalSpent, 2),
 
-            // quantity/price-per-line have no home on the canonical orders
-            // header row (no order_items table was provided) — dropped from
-            // both arrays below. See change log.
             'recent_orders' => $orders->take(5)->map(fn ($o) => [
                 'id' => $o->order_number,
                 'date' => $o->created_at->format('M j, Y'),

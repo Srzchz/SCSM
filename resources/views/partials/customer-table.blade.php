@@ -3,6 +3,7 @@
     $showViewAllLink = $showViewAllLink ?? true;
     $tableId = $tableId ?? 'customer-table-body';
     $renderExtras = $renderExtras ?? ($tableTitle === 'All Customers');
+    $isPaginated = method_exists($tableCustomers, 'hasPages');
 
     $segmentStyle = [
         'VIP' => 'background:rgba(176,180,236,0.45);color:#4C3FB0;',
@@ -63,7 +64,12 @@
         </table>
     </div>
 
-    @if ($showViewAllLink)
+    @if ($isPaginated && $tableCustomers->hasPages())
+        <div class="pagination-bar">
+            <span class="pagination-summary">Showing {{ $tableCustomers->firstItem() }}–{{ $tableCustomers->lastItem() }} of {{ $tableCustomers->total() }}</span>
+            @include('partials.pagination', ['paginator' => $tableCustomers])
+        </div>
+    @elseif ($showViewAllLink)
         <div class="text-center mt-4">
             <a href="{{ route('customers.index') }}"
                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-curema-purplesoft text-curema-purple text-sm font-semibold">
@@ -80,3 +86,19 @@
         });
     </script>
 @endif
+
+<style>
+    /* Pager styling — copied from ascm/cases.blade.php so pagination looks
+       identical across pages. This file's layout (layouts.app) doesn't
+       load that CSS on its own, so it's defined here. */
+    .pagination-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid rgba(18,15,52,0.06);}
+    .pagination-summary{font-size:0.82rem;color:#5B5876;}
+    .pager{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+    .pager-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border-radius:8px;font-size:0.82rem;font-weight:700;color:#120F34;text-decoration:none;border:1px solid transparent;}
+    .pager-btn:hover{background:#E9EBFC;}
+    .pager-btn-active{background:#120F34;color:#fff;}
+    .pager-btn-active:hover{background:#120F34;}
+    .pager-btn-disabled{color:rgba(18,15,52,0.25);cursor:default;}
+    .pager-btn-disabled:hover{background:transparent;}
+    .pager-ellipsis{padding:0 4px;color:#5B5876;font-size:0.82rem;}
+</style>

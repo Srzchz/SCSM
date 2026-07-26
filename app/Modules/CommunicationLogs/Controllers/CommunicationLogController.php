@@ -4,6 +4,7 @@ namespace App\Modules\CommunicationLogs\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\CommunicationLogs\Models\CommunicationLog;
+use App\Support\CustomerActivityService;
 use App\Support\CustomerInsightService;
 
 class CommunicationLogController extends Controller
@@ -17,8 +18,9 @@ class CommunicationLogController extends Controller
 
         $logs = CommunicationLog::with('customer')
             ->orderByDesc('ticket_id')
-            ->get()
-            ->map(fn ($l) => [
+            ->paginate(10)
+            ->withQueryString()
+            ->through(fn ($l) => [
                 'customer_id' => $l->customer_id,
                 'customer' => $l->customer->full_name,
                 'ticket_id' => $l->ticket_id,
@@ -30,7 +32,9 @@ class CommunicationLogController extends Controller
             ]);
 
         $insights = CustomerInsightService::segments();
+        $followUps = CustomerActivityService::upcomingFollowUps();
+        $activities = CustomerActivityService::recentActivities();
 
-        return view('communication-logs.index', compact('days', 'open', 'resolved', 'caseStats', 'logs', 'insights'));
+        return view('communication-logs.index', compact('days', 'open', 'resolved', 'caseStats', 'logs', 'insights', 'followUps', 'activities'));
     }
 }

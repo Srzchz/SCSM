@@ -14,9 +14,9 @@
 
     @include('partials.topbar')
 
-    <div class="flex items-start gap-4">
+    <div class="flex flex-col lg:flex-row items-start gap-4">
 
-        <div class="flex-1 flex flex-col gap-4 min-w-0">
+        <div class="flex-1 flex flex-col gap-4 min-w-0 w-full">
 
             <div class="grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-4">
                 <div class="bg-curema-card rounded-2xl border border-curema-border p-5 h-[260px] flex flex-col">
@@ -91,15 +91,35 @@
                         </tbody>
                     </table>
                 </div>
+
+                @if ($logs->hasPages())
+                    <div class="pagination-bar">
+                        <span class="pagination-summary">Showing {{ $logs->firstItem() }}–{{ $logs->lastItem() }} of {{ $logs->total() }}</span>
+                        @include('partials.pagination', ['paginator' => $logs])
+                    </div>
+                @endif
             </div>
         </div>
 
-        <div class="w-[220px] shrink-0 flex flex-col gap-4">
+        <div class="w-full lg:w-[220px] shrink-0 flex flex-col gap-4">
             @include('partials.customer-insight')
             @include('partials.upcoming-followups')
             @include('partials.recent-activities')
         </div>
     </div>
+
+    <style>
+        .pagination-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid rgba(18,15,52,0.06);}
+        .pagination-summary{font-size:0.82rem;color:#5B5876;}
+        .pager{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+        .pager-btn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 8px;border-radius:8px;font-size:0.82rem;font-weight:700;color:#120F34;text-decoration:none;border:1px solid transparent;}
+        .pager-btn:hover{background:#E9EBFC;}
+        .pager-btn-active{background:#120F34;color:#fff;}
+        .pager-btn-active:hover{background:#120F34;}
+        .pager-btn-disabled{color:rgba(18,15,52,0.25);cursor:default;}
+        .pager-btn-disabled:hover{background:transparent;}
+        .pager-ellipsis{padding:0 4px;color:#5B5876;font-size:0.82rem;}
+    </style>
 
 @endsection
 

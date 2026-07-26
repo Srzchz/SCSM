@@ -44,6 +44,7 @@ class DatabaseSeeder extends Seeder
             MockEcommerceSeeder::class,
             CaseManagementSeeder::class,
             WarrantySeeder::class,
+            CrmDemoDataSeeder::class,
         ]);
     }
 }
