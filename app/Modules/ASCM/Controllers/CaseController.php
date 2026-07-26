@@ -48,6 +48,14 @@ class CaseController extends Controller
         }
 
         $order = $orderLookup->json();
+        $priority = $data['priority'] ?? 'medium';
+
+        // Hours-to-respond per priority, matching the four values the
+        // 'priority' column actually allows. Feeds sla_due_at, which the
+        // Cases list's Activity column reads directly — without this, a
+        // case created here (unlike ones from SupportCaseFactory, which
+        // fakes a date) would show a blank date in that column.
+        $slaHours = ['critical' => 4, 'high' => 24, 'medium' => 72, 'low' => 120];
 
         $case = SupportCase::create([
             'customer_id' => $order['customer_id'],
@@ -55,8 +63,9 @@ class CaseController extends Controller
             'order_item_id' => $order['order_item_id'],
             'product_id' => $order['product_id'],
             'category' => $data['category'],
-            'priority' => $data['priority'] ?? 'medium',
+            'priority' => $priority,
             'status' => 'pending',
+            'sla_due_at' => now()->addHours($slaHours[$priority]),
         ]);
 
         $warrantyClaim = null;
@@ -124,11 +133,10 @@ class CaseController extends Controller
     }
 
     /**
-     * All four actions below redirect back to the dashboard route with
-     * ?section=cases so the page lands back on the Cases tab instead of
-     * defaulting to Overview. There's no auth system wired up yet, so
-     * author_id/changed_by are left null (nullable on every table) rather
-     * than faked.
+     * All four actions below redirect back to the real cases list at
+     * ascm.cases, carrying forward whatever filter/page params were on the
+     * request. author_id/changed_by come from auth()->id(), which is null
+     * for a guest request (nullable on every table) rather than faked.
      */
     public function updateStatus(Request $request, SupportCase $case): RedirectResponse
     {
@@ -181,7 +189,8 @@ class CaseController extends Controller
 
     /**
      * Reassigns who's currently working the case. `assigned_to` is
-     * nullable so a case can be explicitly unassigned again.
+     * nullable so a case can be explicitly unassigned again. Manager-only:
+     * an employee has no business reassigning cases, themselves included.
      *
      * A case can have several linked warranty claims (SupportCase::
      * warrantyClaims is hasMany). Reassigning the case cascades the same
@@ -192,6 +201,8 @@ class CaseController extends Controller
      */
     public function assign(Request $request, SupportCase $case): RedirectResponse
     {
+        abort_unless(auth()->user()?->isManager(), 403, 'Only managers can assign cases.');
+
         $data = $request->validate([
             'assigned_to' => 'nullable|integer|exists:users,id',
         ]);
@@ -305,10 +316,6 @@ class CaseController extends Controller
             fn ($v) => $v !== null && $v !== ''
         );
 
-        $params['section'] = 'cases';
-
-        $url = route('dashboard', $params) . '#cases';
-
-        return redirect($url)->with('status', $message);
+        return redirect()->route('ascm.cases', $params)->with('status', $message);
     }
 }

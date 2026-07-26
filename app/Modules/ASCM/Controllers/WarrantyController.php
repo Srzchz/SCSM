@@ -15,12 +15,10 @@ use Illuminate\Http\Request;
 class WarrantyController extends Controller
 {
     /**
-     * Mirrors CaseController: every action redirects back to the dashboard
-     * route with ?section=warranty (and the page you were on, if any) so
-     * the page lands back on the Warranty tab instead of defaulting to
-     * Overview. There's no auth system wired up yet, so author_id /
-     * decision_by are left null (nullable on every table) rather than
-     * faked.
+     * Mirrors CaseController: every action redirects back to the real
+     * warranty list at ascm.warranty (and the page you were on, if any).
+     * author_id/decision_by come from auth()->id(), which is null for a
+     * guest request (nullable on every table) rather than faked.
      */
     public function updateDecision(Request $request, WarrantyClaim $claim): RedirectResponse
     {
@@ -52,15 +50,17 @@ class WarrantyController extends Controller
     }
 
     /**
-     * Reassigns who's currently working the claim. Mirrors
-     * CaseController::assign, and cascades the other direction: a claim
-     * belongs to at most one case (case_id is nullable, singular), so if
-     * this claim is linked to a case, that case's assigned_to is synced
-     * to match -- whoever's now handling the claim is treated as now
-     * handling the case it came from too.
+     * Reassigns who's currently working the claim. Manager-only, same as
+     * CaseController::assign. Mirrors CaseController::assign, and cascades
+     * the other direction: a claim belongs to at most one case (case_id is
+     * nullable, singular), so if this claim is linked to a case, that
+     * case's assigned_to is synced to match -- whoever's now handling the
+     * claim is treated as now handling the case it came from too.
      */
     public function assign(Request $request, WarrantyClaim $claim): RedirectResponse
     {
+        abort_unless(auth()->user()?->isManager(), 403, 'Only managers can assign warranty claims.');
+
         $data = $request->validate([
             'assigned_to' => 'nullable|integer|exists:users,id',
         ]);
@@ -143,13 +143,6 @@ class WarrantyController extends Controller
             fn ($v) => $v !== null && $v !== ''
         );
 
-        $params['section'] = 'warranty';
-
-        // See the matching comment in CaseController::backToCases — the
-        // SPA shell tracks the active tab via the URL hash, which a plain
-        // redirect() drops, so we add it back manually.
-        $url = route('dashboard', $params) . '#warranty';
-
-        return redirect($url)->with('status', $message);
+        return redirect()->route('ascm.warranty', $params)->with('status', $message);
     }
 }
