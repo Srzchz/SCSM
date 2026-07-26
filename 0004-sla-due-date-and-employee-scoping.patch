@@ -1,0 +1,98 @@
+diff --git a/app/Http/Controllers/AscmShellController.php b/app/Http/Controllers/AscmShellController.php
+index 40d0be1..f932405 100644
+--- a/app/Http/Controllers/AscmShellController.php
++++ b/app/Http/Controllers/AscmShellController.php
+@@ -48,9 +48,26 @@ private function loadAssignableUsers()
+     }
+ 
+     /**
+-     * Stats are computed against the full (unfiltered) table so the
+-     * "Open / Pending / Resolved" counters stay a stable overall reference
+-     * no matter what filter or page you're currently looking at.
++     * Managers see everything; an employee only sees cases/claims
++     * assigned to them. Applied to both the stat counters and the main
++     * list query so the numbers on screen stay consistent with what's
++     * actually in the table below them -- an employee seeing "18 open"
++     * while their own list shows 2 would be confusing.
++     */
++    private function scopeToAssignee($query)
++    {
++        if (auth()->user()?->isEmployee()) {
++            $query->where('assigned_to', auth()->id());
++        }
++
++        return $query;
++    }
++
++    /**
++     * Stats are computed against the full (unfiltered, but see
++     * scopeToAssignee) table so the "Open / Pending / Resolved" counters
++     * stay a stable overall reference no matter what filter or page you're
++     * currently looking at.
+      */
+     private function loadCases(Request $request): array
+     {
+@@ -63,12 +80,12 @@ private function loadCases(Request $request): array
+         ];
+ 
+         $caseStats = [
+-            'open' => SupportCase::where('status', 'open')->count(),
+-            'pending' => SupportCase::where('status', 'pending')->count(),
+-            'resolved' => SupportCase::where('status', 'resolved')->count(),
++            'open' => $this->scopeToAssignee(SupportCase::where('status', 'open'))->count(),
++            'pending' => $this->scopeToAssignee(SupportCase::where('status', 'pending'))->count(),
++            'resolved' => $this->scopeToAssignee(SupportCase::where('status', 'resolved'))->count(),
+         ];
+ 
+-        $query = SupportCase::query();
++        $query = $this->scopeToAssignee(SupportCase::query());
+ 
+         if ($filters['status'] !== '' && strtolower($filters['status']) !== 'all') {
+             $query->where('status', strtolower($filters['status']));
+@@ -176,12 +193,12 @@ private function loadWarrantyClaims(Request $request): array
+         ];
+ 
+         $warrantyStats = [
+-            'open' => WarrantyClaim::whereIn('status', ['submitted', 'under_review'])->count(),
+-            'approved' => WarrantyClaim::where('status', 'approved')->count(),
+-            'rejected' => WarrantyClaim::where('status', 'rejected')->count(),
++            'open' => $this->scopeToAssignee(WarrantyClaim::whereIn('status', ['submitted', 'under_review']))->count(),
++            'approved' => $this->scopeToAssignee(WarrantyClaim::where('status', 'approved'))->count(),
++            'rejected' => $this->scopeToAssignee(WarrantyClaim::where('status', 'rejected'))->count(),
+         ];
+ 
+-        $query = WarrantyClaim::query();
++        $query = $this->scopeToAssignee(WarrantyClaim::query());
+ 
+         if ($filters['type'] !== '' && strtolower($filters['type']) !== 'all') {
+             $type = strtolower($filters['type']);
+diff --git a/app/Modules/ASCM/Controllers/CaseController.php b/app/Modules/ASCM/Controllers/CaseController.php
+index 2c6387c..878868d 100644
+--- a/app/Modules/ASCM/Controllers/CaseController.php
++++ b/app/Modules/ASCM/Controllers/CaseController.php
+@@ -48,6 +48,14 @@ public function store(Request $request): JsonResponse
+         }
+ 
+         $order = $orderLookup->json();
++        $priority = $data['priority'] ?? 'medium';
++
++        // Hours-to-respond per priority, matching the four values the
++        // 'priority' column actually allows. Feeds sla_due_at, which the
++        // Cases list's Activity column reads directly — without this, a
++        // case created here (unlike ones from SupportCaseFactory, which
++        // fakes a date) would show a blank date in that column.
++        $slaHours = ['critical' => 4, 'high' => 24, 'medium' => 72, 'low' => 120];
+ 
+         $case = SupportCase::create([
+             'customer_id' => $order['customer_id'],
+@@ -55,8 +63,9 @@ public function store(Request $request): JsonResponse
+             'order_item_id' => $order['order_item_id'],
+             'product_id' => $order['product_id'],
+             'category' => $data['category'],
+-            'priority' => $data['priority'] ?? 'medium',
++            'priority' => $priority,
+             'status' => 'pending',
++            'sla_due_at' => now()->addHours($slaHours[$priority]),
+         ]);
+ 
+         $warrantyClaim = null;

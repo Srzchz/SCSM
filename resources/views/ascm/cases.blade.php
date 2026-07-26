@@ -79,20 +79,22 @@
                     <button type="submit" class="btn btn-primary">Update</button>
                 </form>
 
-                <form class="detail-actions" id="panel-case-assign-form" method="POST" action="#">
-                    @csrf
-                    @method('PATCH')
-                    <div class="field-inline">
-                        <label class="filter-label" for="panel-case-assign">Assigned to</label>
-                        <select id="panel-case-assign" name="assigned_to" class="input">
-                            <option value="">Unassigned</option>
-                            @foreach ($assignableUsers as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Assign</button>
-                </form>
+                @if (auth()->user()?->isManager())
+                    <form class="detail-actions" id="panel-case-assign-form" method="POST" action="#">
+                        @csrf
+                        @method('PATCH')
+                        <div class="field-inline">
+                            <label class="filter-label" for="panel-case-assign">Assigned to</label>
+                            <select id="panel-case-assign" name="assigned_to" class="input">
+                                <option value="">Unassigned</option>
+                                @foreach ($assignableUsers as $user)
+                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Assign</button>
+                    </form>
+                @endif
 
                 <div class="tabs" role="tablist" aria-label="Case tabs">
                     <button type="button" class="tab tab-active" role="tab" aria-selected="true" data-tab="timeline">Timeline</button>

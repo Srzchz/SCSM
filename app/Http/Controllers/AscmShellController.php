@@ -48,9 +48,26 @@ class AscmShellController extends Controller
     }
 
     /**
-     * Stats are computed against the full (unfiltered) table so the
-     * "Open / Pending / Resolved" counters stay a stable overall reference
-     * no matter what filter or page you're currently looking at.
+     * Managers see everything; an employee only sees cases/claims
+     * assigned to them. Applied to both the stat counters and the main
+     * list query so the numbers on screen stay consistent with what's
+     * actually in the table below them -- an employee seeing "18 open"
+     * while their own list shows 2 would be confusing.
+     */
+    private function scopeToAssignee($query)
+    {
+        if (auth()->user()?->isEmployee()) {
+            $query->where('assigned_to', auth()->id());
+        }
+
+        return $query;
+    }
+
+    /**
+     * Stats are computed against the full (unfiltered, but see
+     * scopeToAssignee) table so the "Open / Pending / Resolved" counters
+     * stay a stable overall reference no matter what filter or page you're
+     * currently looking at.
      */
     private function loadCases(Request $request): array
     {
@@ -63,12 +80,12 @@ class AscmShellController extends Controller
         ];
 
         $caseStats = [
-            'open' => SupportCase::where('status', 'open')->count(),
-            'pending' => SupportCase::where('status', 'pending')->count(),
-            'resolved' => SupportCase::where('status', 'resolved')->count(),
+            'open' => $this->scopeToAssignee(SupportCase::where('status', 'open'))->count(),
+            'pending' => $this->scopeToAssignee(SupportCase::where('status', 'pending'))->count(),
+            'resolved' => $this->scopeToAssignee(SupportCase::where('status', 'resolved'))->count(),
         ];
 
-        $query = SupportCase::query();
+        $query = $this->scopeToAssignee(SupportCase::query());
 
         if ($filters['status'] !== '' && strtolower($filters['status']) !== 'all') {
             $query->where('status', strtolower($filters['status']));
@@ -176,12 +193,12 @@ class AscmShellController extends Controller
         ];
 
         $warrantyStats = [
-            'open' => WarrantyClaim::whereIn('status', ['submitted', 'under_review'])->count(),
-            'approved' => WarrantyClaim::where('status', 'approved')->count(),
-            'rejected' => WarrantyClaim::where('status', 'rejected')->count(),
+            'open' => $this->scopeToAssignee(WarrantyClaim::whereIn('status', ['submitted', 'under_review']))->count(),
+            'approved' => $this->scopeToAssignee(WarrantyClaim::where('status', 'approved'))->count(),
+            'rejected' => $this->scopeToAssignee(WarrantyClaim::where('status', 'rejected'))->count(),
         ];
 
-        $query = WarrantyClaim::query();
+        $query = $this->scopeToAssignee(WarrantyClaim::query());
 
         if ($filters['type'] !== '' && strtolower($filters['type']) !== 'all') {
             $type = strtolower($filters['type']);
