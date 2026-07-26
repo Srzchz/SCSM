@@ -1,0 +1,788 @@
+diff --git a/app/Http/Controllers/AccountController.php b/app/Http/Controllers/AccountController.php
+new file mode 100644
+index 0000000..cfcd74d
+--- /dev/null
++++ b/app/Http/Controllers/AccountController.php
+@@ -0,0 +1,41 @@
++<?php
++
++namespace App\Http\Controllers;
++
++use Illuminate\Http\RedirectResponse;
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\Auth;
++use Illuminate\Support\Facades\Hash;
++use Illuminate\View\View;
++
++class AccountController extends Controller
++{
++    public function show(): View
++    {
++        return view('account.show', ['active' => 'account']);
++    }
++
++    public function update(Request $request): RedirectResponse
++    {
++        $user = Auth::user();
++
++        $data = $request->validate([
++            'name' => 'required|string|max:150',
++            'department' => 'nullable|string|max:80',
++            'password' => 'nullable|string|min:8|confirmed',
++        ]);
++
++        $user->fill([
++            'name' => $data['name'],
++            'department' => $data['department'] ?? null,
++        ]);
++
++        if (! empty($data['password'])) {
++            $user->password = Hash::make($data['password']);
++        }
++
++        $user->save();
++
++        return back()->with('success', 'Account updated.');
++    }
++}
+diff --git a/app/Http/Controllers/AuthController.php b/app/Http/Controllers/AuthController.php
+new file mode 100644
+index 0000000..c44b6e1
+--- /dev/null
++++ b/app/Http/Controllers/AuthController.php
+@@ -0,0 +1,79 @@
++<?php
++
++namespace App\Http\Controllers;
++
++use App\Models\User;
++use Illuminate\Http\RedirectResponse;
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\Auth;
++use Illuminate\Support\Facades\Hash;
++use Illuminate\Validation\Rule;
++use Illuminate\View\View;
++
++class AuthController extends Controller
++{
++    public function showLogin(): View
++    {
++        return view('auth.login');
++    }
++
++    public function login(Request $request): RedirectResponse
++    {
++        $credentials = $request->validate([
++            'email' => 'required|email',
++            'password' => 'required|string',
++        ]);
++
++        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
++            return back()
++                ->withErrors(['email' => 'Those credentials don\'t match an account.'])
++                ->onlyInput('email');
++        }
++
++        $request->session()->regenerate();
++
++        return redirect()->intended(route('dashboard'))->with('success', 'Welcome back, ' . Auth::user()->name . '.');
++    }
++
++    public function showRegister(): View
++    {
++        return view('auth.register');
++    }
++
++    public function register(Request $request): RedirectResponse
++    {
++        $data = $request->validate([
++            'name' => 'required|string|max:150',
++            'email' => 'required|email|max:150|unique:users,email',
++            'password' => 'required|string|min:8|confirmed',
++            'role' => ['required', Rule::in([User::ROLE_MANAGER, User::ROLE_EMPLOYEE])],
++            'department' => 'nullable|string|max:80',
++        ]);
++
++        $user = User::create([
++            'name' => $data['name'],
++            'email' => $data['email'],
++            'password' => Hash::make($data['password']),
++            'role' => $data['role'],
++            'department' => $data['department'] ?? null,
++            'avatar_initials' => collect(explode(' ', $data['name']))
++                ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
++                ->join(''),
++        ]);
++
++        Auth::login($user);
++        $request->session()->regenerate();
++
++        return redirect()->route('dashboard')->with('success', 'Account created — welcome, ' . $user->name . '.');
++    }
++
++    public function logout(Request $request): RedirectResponse
++    {
++        Auth::logout();
++
++        $request->session()->invalidate();
++        $request->session()->regenerateToken();
++
++        return redirect()->route('login')->with('success', 'You have been logged out.');
++    }
++}
+diff --git a/app/Models/User.php b/app/Models/User.php
+index f6ba1d2..0d62409 100644
+--- a/app/Models/User.php
++++ b/app/Models/User.php
+@@ -3,20 +3,27 @@
+ namespace App\Models;
+ 
+ // use Illuminate\Contracts\Auth\MustVerifyEmail;
++use App\Modules\SalesPerformanceReporting\Models\Region;
++use App\Modules\SalesPerformanceReporting\Models\UserSetting;
+ use Database\Factories\UserFactory;
+ use Illuminate\Database\Eloquent\Attributes\Fillable;
+ use Illuminate\Database\Eloquent\Attributes\Hidden;
+ use Illuminate\Database\Eloquent\Factories\HasFactory;
++use Illuminate\Database\Eloquent\Relations\BelongsTo;
++use Illuminate\Database\Eloquent\Relations\HasOne;
+ use Illuminate\Foundation\Auth\User as Authenticatable;
+ use Illuminate\Notifications\Notifiable;
+ 
+-#[Fillable(['name', 'email', 'password'])]
++#[Fillable(['name', 'email', 'password', 'role', 'region_id', 'employee_code', 'department', 'avatar_initials'])]
+ #[Hidden(['password', 'remember_token'])]
+ class User extends Authenticatable
+ {
+     /** @use HasFactory<UserFactory> */
+     use HasFactory, Notifiable;
+ 
++    public const ROLE_MANAGER = 'manager';
++    public const ROLE_EMPLOYEE = 'employee';
++
+     /**
+      * Get the attributes that should be cast.
+      *
+@@ -29,4 +36,24 @@ protected function casts(): array
+             'password' => 'hashed',
+         ];
+     }
++
++    public function isManager(): bool
++    {
++        return $this->role === self::ROLE_MANAGER;
++    }
++
++    public function isEmployee(): bool
++    {
++        return $this->role === self::ROLE_EMPLOYEE;
++    }
++
++    public function region(): BelongsTo
++    {
++        return $this->belongsTo(Region::class, 'region_id');
++    }
++
++    public function settings(): HasOne
++    {
++        return $this->hasOne(UserSetting::class);
++    }
+ }
+diff --git a/app/Modules/SalesPerformanceReporting/Models/UserSetting.php b/app/Modules/SalesPerformanceReporting/Models/UserSetting.php
+new file mode 100644
+index 0000000..3a8d6e2
+--- /dev/null
++++ b/app/Modules/SalesPerformanceReporting/Models/UserSetting.php
+@@ -0,0 +1,39 @@
++<?php
++
++namespace App\Modules\SalesPerformanceReporting\Models;
++
++use App\Models\User;
++use Illuminate\Database\Eloquent\Model;
++use Illuminate\Database\Eloquent\Relations\BelongsTo;
++
++/**
++ * Backs sales_performance_reporting_user_settings. The table existed since
++ * the original migration but had no model — AppServiceProvider's view
++ * composer referenced a `settings` relation that couldn't resolve to
++ * anything. This just makes that relation real; there's still no
++ * Settings UI reading/writing these columns yet.
++ */
++class UserSetting extends Model
++{
++    protected $table = 'sales_performance_reporting_user_settings';
++
++    public $timestamps = false;
++
++    protected $fillable = [
++        'user_id',
++        'notifications_enabled',
++        'dark_mode_enabled',
++        'quota_reminders_enabled',
++    ];
++
++    protected $casts = [
++        'notifications_enabled' => 'boolean',
++        'dark_mode_enabled' => 'boolean',
++        'quota_reminders_enabled' => 'boolean',
++    ];
++
++    public function user(): BelongsTo
++    {
++        return $this->belongsTo(User::class);
++    }
++}
+diff --git a/app/Providers/AppServiceProvider-boot-snippet.php b/app/Providers/AppServiceProvider-boot-snippet.php
+index 6cc97f2..e6904da 100644
+--- a/app/Providers/AppServiceProvider-boot-snippet.php
++++ b/app/Providers/AppServiceProvider-boot-snippet.php
+@@ -6,23 +6,19 @@
+  * so the sidebar badge and the Account/Settings overlays have real data
+  * on every page without each controller needing to pass it manually.
+  *
+- * NOTE: User is this module's local copy of a table (`users`) flagged as
+- * shared/core in the CHANGE LOG below. Once the canonical User model's
+- * location is confirmed across teams, this import should point there
+- * instead of at this module's own copy.
++ * UPDATE: real login is now wired up (see routes/auth.php,
++ * AuthController). This previously faked a "logged in as the first
++ * manager" user via a class, App\Modules\SalesPerformanceReporting\Models\User,
++ * that didn't actually exist anywhere in the codebase — that's fixed below.
+  */
+ 
+ use App\Modules\SalesPerformanceReporting\Models\Alert;
+-use App\Modules\SalesPerformanceReporting\Models\User;
+ use Illuminate\Support\Facades\View;
+ 
+ public function boot(): void
+ {
+     View::composer('sales-performance-reporting.layouts.app', function ($view) {
+-        // Swap this for auth()->user() once real login is wired up.
+-        $currentUser = User::with(['region', 'settings'])
+-            ->where('role', 'manager')
+-            ->first() ?? User::with(['region', 'settings'])->first();
++        $currentUser = auth()->user()?->loadMissing(['region', 'settings']);
+ 
+         $view->with([
+             'alertCount'  => Alert::where('is_read', false)->count(),
+diff --git a/app/Providers/AppServiceProvider.php b/app/Providers/AppServiceProvider.php
+index 016407a..b952da3 100644
+--- a/app/Providers/AppServiceProvider.php
++++ b/app/Providers/AppServiceProvider.php
+@@ -3,7 +3,6 @@
+ namespace App\Providers;
+ 
+ use App\Modules\SalesPerformanceReporting\Models\Alert;
+-use App\Modules\SalesPerformanceReporting\Models\User;
+ use Illuminate\Support\Facades\View;
+ use Illuminate\Support\ServiceProvider;
+ 
+@@ -19,19 +18,14 @@ public function register(): void
+ 
+     /**
+      * Bootstrap any application services.
+-     *
+-     * NOTE: User is this module's local copy of a table (`users`) flagged as
+-     * shared/core in the CHANGE LOG. Once the canonical User model's
+-     * location is confirmed across teams, this import should point there
+-     * instead of at this module's own copy.
+      */
+     public function boot(): void
+     {
+         View::composer('sales-performance-reporting.layouts.app', function ($view) {
+-            // Swap this for auth()->user() once real login is wired up.
+-            $currentUser = User::with(['region', 'settings'])
+-                ->where('role', 'manager')
+-                ->first() ?? User::with(['region', 'settings'])->first();
++            // Real login is wired up now — this used to fake a "logged in
++            // as the first manager" user via App\Modules\SalesPerformanceReporting\Models\User,
++            // a class that didn't actually exist anywhere in the codebase.
++            $currentUser = auth()->user()?->loadMissing(['region', 'settings']);
+ 
+             $view->with([
+                 'alertCount' => Alert::where('is_read', false)->count(),
+diff --git a/database/migrations/2026_07_26_100000_refactor_users_role_to_manager_employee.php b/database/migrations/2026_07_26_100000_refactor_users_role_to_manager_employee.php
+new file mode 100644
+index 0000000..07d91ba
+--- /dev/null
++++ b/database/migrations/2026_07_26_100000_refactor_users_role_to_manager_employee.php
+@@ -0,0 +1,73 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Schema;
++
++/**
++ * Collapses the old three-value role enum (admin/manager/rep) down to the
++ * two roles account management actually needs: manager and employee.
++ * 'admin' folds into 'manager' (nothing in the codebase branched on
++ * 'admin' specifically — grep turned up zero usages), and 'rep' folds
++ * into 'employee' (SalesPerformanceReportingDemoSeeder was the only place
++ * writing 'rep', and nothing downstream queries by that string — see
++ * TargetSyncService, which keys off sales_reps.user_id instead).
++ *
++ * Switched from enum() to a plain string column going forward. MySQL enums
++ * require an ALTER...MODIFY (and doctrine/dbal, which this project doesn't
++ * have installed, for Schema::change()) every time the allowed set
++ * changes; a validated string column sidesteps that entirely and matches
++ * how the rest of this app enforces constraints at the application layer
++ * rather than the DB layer.
++ */
++return new class extends Migration
++{
++    public function up(): void
++    {
++        $driver = Schema::getConnection()->getDriverName();
++
++        if ($driver === 'sqlite') {
++            // SQLite has no ALTER COLUMN — enum() was implemented as a CHECK
++            // constraint baked into CREATE TABLE, so the column has to be
++            // dropped and re-added rather than modified in place. Tests run
++            // against a fresh in-memory SQLite DB per phpunit.xml, so there's
++            // no persisted data to carry across here.
++            Schema::table('users', function (Blueprint $table) {
++                $table->dropColumn('role');
++            });
++            Schema::table('users', function (Blueprint $table) {
++                $table->string('role', 20)->default('employee')->after('password');
++            });
++        } else {
++            // Widen to plain varchar first (existing admin/manager/rep values
++            // carry over as-is — MySQL enums are stored as strings), then
++            // translate the data below.
++            DB::statement("ALTER TABLE users MODIFY role VARCHAR(20) NOT NULL DEFAULT 'employee'");
++        }
++
++        DB::table('users')->whereIn('role', ['admin', 'manager'])->update(['role' => 'manager']);
++        DB::table('users')->where('role', 'rep')->update(['role' => 'employee']);
++    }
++
++    public function down(): void
++    {
++        // Best-effort and lossy: 'manager' rows that used to be 'admin' can't
++        // be told apart from rows that were always 'manager'.
++        DB::table('users')->where('role', 'manager')->update(['role' => 'admin']);
++        DB::table('users')->where('role', 'employee')->update(['role' => 'rep']);
++
++        $driver = Schema::getConnection()->getDriverName();
++
++        if ($driver === 'sqlite') {
++            Schema::table('users', function (Blueprint $table) {
++                $table->dropColumn('role');
++            });
++            Schema::table('users', function (Blueprint $table) {
++                $table->enum('role', ['admin', 'manager', 'rep'])->default('rep')->after('password');
++            });
++        } else {
++            DB::statement("ALTER TABLE users MODIFY role ENUM('admin','manager','rep') NOT NULL DEFAULT 'rep'");
++        }
++    }
++};
+diff --git a/database/seeders/SalesPerformanceReportingDemoSeeder.php b/database/seeders/SalesPerformanceReportingDemoSeeder.php
+index 5851533..028acd1 100644
+--- a/database/seeders/SalesPerformanceReportingDemoSeeder.php
++++ b/database/seeders/SalesPerformanceReportingDemoSeeder.php
+@@ -96,7 +96,7 @@ private function seedReps(array $regionIds): array
+                     'name'          => $rep['name'],
+                     'email'         => $email,
+                     'password'      => Hash::make('password'),
+-                    'role'          => 'rep',
++                    'role'          => 'employee',
+                     'region_id'     => $regionIds[$rep['region']],
+                     'avatar_initials' => collect(explode(' ', $rep['name']))->map(fn ($p) => $p[0])->join(''),
+                     'employee_code' => 'REP-' . str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
+diff --git a/resources/views/account/show.blade.php b/resources/views/account/show.blade.php
+new file mode 100644
+index 0000000..d6a1300
+--- /dev/null
++++ b/resources/views/account/show.blade.php
+@@ -0,0 +1,91 @@
++@extends('layouts.app')
++
++@section('title', 'Account')
++
++@section('content')
++
++    <div class="mb-5">
++        <h1 class="text-2xl font-extrabold">Account</h1>
++        <p class="text-sm text-curema-sub">Manage your profile and login details</p>
++    </div>
++
++    @if (session('success'))
++        <div class="mb-4 px-4 py-3 rounded-xl bg-curema-greensoft text-curema-green text-sm font-medium">
++            {{ session('success') }}
++        </div>
++    @endif
++
++    @if ($errors->any())
++        <div class="mb-4 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium space-y-1">
++            @foreach ($errors->all() as $error)
++                <p>{{ $error }}</p>
++            @endforeach
++        </div>
++    @endif
++
++    @php $user = auth()->user(); @endphp
++
++    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
++        <div class="module-card lg:col-span-1">
++            <div class="flex flex-col items-center text-center gap-3 py-2">
++                <div class="w-16 h-16 rounded-full bg-curema-purplesoft flex items-center justify-center text-xl font-bold">
++                    {{ $user->avatar_initials ?: mb_strtoupper(mb_substr($user->name, 0, 1)) }}
++                </div>
++                <div>
++                    <p class="font-bold">{{ $user->name }}</p>
++                    <p class="text-sm text-curema-sub">{{ $user->email }}</p>
++                </div>
++                <span class="px-3 py-1 rounded-full text-xs font-semibold
++                             {{ $user->isManager() ? 'bg-curema-purplesoft text-curema-purple' : 'bg-curema-bg text-curema-ink/70' }}">
++                    {{ ucfirst($user->role) }}
++                </span>
++                @if ($user->department)
++                    <p class="text-xs text-curema-sub">{{ $user->department }}</p>
++                @endif
++            </div>
++        </div>
++
++        <div class="module-card lg:col-span-2">
++            <h2 class="card-title mb-4">Edit profile</h2>
++
++            <form method="POST" action="{{ route('account.update') }}" class="space-y-4">
++                @csrf
++                @method('PATCH')
++
++                <div>
++                    <label for="name" class="block text-xs font-medium text-curema-sub mb-1.5">Full name</label>
++                    <input type="text" name="name" id="name" value="{{ old('name', $user->name) }}" required
++                           class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                                  focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++                </div>
++
++                <div>
++                    <label for="department" class="block text-xs font-medium text-curema-sub mb-1.5">Department</label>
++                    <input type="text" name="department" id="department" value="{{ old('department', $user->department) }}"
++                           class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                                  focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++                </div>
++
++                <div class="grid grid-cols-2 gap-4">
++                    <div>
++                        <label for="password" class="block text-xs font-medium text-curema-sub mb-1.5">New password <span class="text-curema-sub/70">(optional)</span></label>
++                        <input type="password" name="password" id="password"
++                               class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                                      focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++                    </div>
++                    <div>
++                        <label for="password_confirmation" class="block text-xs font-medium text-curema-sub mb-1.5">Confirm new password</label>
++                        <input type="password" name="password_confirmation" id="password_confirmation"
++                               class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                                      focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++                    </div>
++                </div>
++
++                <button type="submit" class="px-5 py-2.5 rounded-xl bg-curema-purple text-white text-sm font-semibold">
++                    Save changes
++                </button>
++            </form>
++        </div>
++    </div>
++
++@endsection
+diff --git a/resources/views/auth/login.blade.php b/resources/views/auth/login.blade.php
+new file mode 100644
+index 0000000..cd7bb5e
+--- /dev/null
++++ b/resources/views/auth/login.blade.php
+@@ -0,0 +1,43 @@
++@extends('layouts.guest')
++
++@section('title', 'Log In')
++
++@section('content')
++
++    <h1 class="text-lg font-bold mb-1">Welcome back</h1>
++    <p class="text-sm text-curema-sub mb-5">Log in to your SCSM account.</p>
++
++    <form method="POST" action="{{ route('login') }}" class="space-y-4">
++        @csrf
++
++        <div>
++            <label for="email" class="block text-xs font-medium text-curema-sub mb-1.5">Email</label>
++            <input type="email" name="email" id="email" value="{{ old('email') }}" required autofocus
++                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++        </div>
++
++        <div>
++            <label for="password" class="block text-xs font-medium text-curema-sub mb-1.5">Password</label>
++            <input type="password" name="password" id="password" required
++                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++        </div>
++
++        <label class="flex items-center gap-2 text-sm text-curema-sub">
++            <input type="checkbox" name="remember" class="rounded border-curema-border">
++            Remember me
++        </label>
++
++        <button type="submit"
++                class="w-full py-2.5 rounded-xl bg-curema-purple text-white text-sm font-semibold">
++            Log In
++        </button>
++    </form>
++
++    <p class="text-sm text-curema-sub text-center mt-5">
++        Don't have an account?
++        <a href="{{ route('register') }}" class="font-semibold text-curema-ink hover:underline">Sign up</a>
++    </p>
++
++@endsection
+diff --git a/resources/views/auth/register.blade.php b/resources/views/auth/register.blade.php
+new file mode 100644
+index 0000000..be89900
+--- /dev/null
++++ b/resources/views/auth/register.blade.php
+@@ -0,0 +1,73 @@
++@extends('layouts.guest')
++
++@section('title', 'Sign Up')
++
++@section('content')
++
++    <h1 class="text-lg font-bold mb-1">Create your account</h1>
++    <p class="text-sm text-curema-sub mb-5">Set up access to SCSM.</p>
++
++    <form method="POST" action="{{ route('register') }}" class="space-y-4">
++        @csrf
++
++        <div>
++            <label for="name" class="block text-xs font-medium text-curema-sub mb-1.5">Full name</label>
++            <input type="text" name="name" id="name" value="{{ old('name') }}" required autofocus
++                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++        </div>
++
++        <div>
++            <label for="email" class="block text-xs font-medium text-curema-sub mb-1.5">Email</label>
++            <input type="email" name="email" id="email" value="{{ old('email') }}" required
++                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++        </div>
++
++        <div>
++            <span class="block text-xs font-medium text-curema-sub mb-1.5">Role</span>
++            <div class="grid grid-cols-2 gap-2">
++                <label class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-curema-border text-sm font-medium cursor-pointer has-[:checked]:border-curema-purple has-[:checked]:bg-curema-purplesoft/40">
++                    <input type="radio" name="role" value="manager" class="accent-curema-purple" {{ old('role') === 'manager' ? 'checked' : '' }}>
++                    Manager
++                </label>
++                <label class="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-curema-border text-sm font-medium cursor-pointer has-[:checked]:border-curema-purple has-[:checked]:bg-curema-purplesoft/40">
++                    <input type="radio" name="role" value="employee" class="accent-curema-purple" {{ old('role', 'employee') === 'employee' ? 'checked' : '' }}>
++                    Employee
++                </label>
++            </div>
++        </div>
++
++        <div>
++            <label for="department" class="block text-xs font-medium text-curema-sub mb-1.5">Department <span class="text-curema-sub/70">(optional)</span></label>
++            <input type="text" name="department" id="department" value="{{ old('department') }}" placeholder="e.g. Sales, Support"
++                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++        </div>
++
++        <div>
++            <label for="password" class="block text-xs font-medium text-curema-sub mb-1.5">Password</label>
++            <input type="password" name="password" id="password" required
++                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++        </div>
++
++        <div>
++            <label for="password_confirmation" class="block text-xs font-medium text-curema-sub mb-1.5">Confirm password</label>
++            <input type="password" name="password_confirmation" id="password_confirmation" required
++                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
++                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
++        </div>
++
++        <button type="submit"
++                class="w-full py-2.5 rounded-xl bg-curema-purple text-white text-sm font-semibold">
++            Create Account
++        </button>
++    </form>
++
++    <p class="text-sm text-curema-sub text-center mt-5">
++        Already have an account?
++        <a href="{{ route('login') }}" class="font-semibold text-curema-ink hover:underline">Log in</a>
++    </p>
++
++@endsection
+diff --git a/resources/views/layouts/app.blade.php b/resources/views/layouts/app.blade.php
+index cba0a60..f7ee2a7 100644
+--- a/resources/views/layouts/app.blade.php
++++ b/resources/views/layouts/app.blade.php
+@@ -174,18 +174,6 @@ function refreshAllCharts() {
+             chartResizeTimer = setTimeout(refreshAllCharts, 250);
+         });
+     </script>
+-    <script>
+-        
+-        (function () {
+-            const params = new URLSearchParams(window.location.search);
+-            if (params.get('loggedOut') === '1') {
+-                alert('You have been logged out.');
+-                params.delete('loggedOut');
+-                const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+-                window.history.replaceState({}, '', clean);
+-            }
+-        })();
+-    </script>
+ 
+     @stack('scripts')
+ </body>
+diff --git a/resources/views/layouts/guest.blade.php b/resources/views/layouts/guest.blade.php
+new file mode 100644
+index 0000000..91ffa45
+--- /dev/null
++++ b/resources/views/layouts/guest.blade.php
+@@ -0,0 +1,64 @@
++<!DOCTYPE html>
++<html lang="en">
++<head>
++    <meta charset="UTF-8">
++    <meta name="viewport" content="width=device-width, initial-scale=1.0">
++    <title>@yield('title', 'SCSM')</title>
++
++    <script src="https://cdn.tailwindcss.com"></script>
++    <script>
++        tailwind.config = {
++            theme: {
++                extend: {
++                    colors: {
++                        curema: {
++                            bg: '#E9EBFC',
++                            card: '#FFFFFF',
++                            ink: '#120F34',
++                            sub: '#5B5876',
++                            border: '#CFD2F9',
++                            purple: '#120F34',
++                            purplesoft: '#B0B4EC',
++                            green: '#00630F',
++                            greensoft: '#9CFF9F',
++                        }
++                    },
++                    fontFamily: {
++                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
++                    }
++                }
++            }
++        }
++    </script>
++    <link rel="preconnect" href="https://fonts.googleapis.com">
++    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
++</head>
++<body class="bg-curema-bg text-curema-ink antialiased font-sans min-h-screen flex items-center justify-center p-4">
++
++    <div class="w-full max-w-sm">
++        <div class="flex items-center justify-center gap-2 mb-6">
++            <div class="w-9 h-9 rounded-xl bg-curema-purplesoft flex items-center justify-center text-lg">◈</div>
++            <span class="text-xl font-extrabold tracking-tight">SCSM</span>
++        </div>
++
++        <div class="bg-curema-card rounded-2xl border border-curema-border shadow-sm p-6">
++            @if (session('success'))
++                <div class="mb-4 px-3 py-2.5 rounded-xl bg-curema-greensoft text-curema-green text-sm font-medium">
++                    {{ session('success') }}
++                </div>
++            @endif
++
++            @if ($errors->any())
++                <div class="mb-4 px-3 py-2.5 rounded-xl bg-red-50 text-red-600 text-sm font-medium space-y-1">
++                    @foreach ($errors->all() as $error)
++                        <p>{{ $error }}</p>
++                    @endforeach
++                </div>
++            @endif
++
++            @yield('content')
++        </div>
++    </div>
++
++</body>
++</html>
+diff --git a/resources/views/partials/modals/settings-modal.blade.php b/resources/views/partials/modals/settings-modal.blade.php
+index 7c5b1a7..7b7a1ee 100644
+--- a/resources/views/partials/modals/settings-modal.blade.php
++++ b/resources/views/partials/modals/settings-modal.blade.php
+@@ -55,8 +55,11 @@ class="w-full flex items-center justify-between py-3 border-t border-curema-bord
+                 <span class="text-curema-sub">›</span>
+             </button>
+ 
++            <form method="POST" action="{{ route('logout') }}" id="logout-form">
++                @csrf
++            </form>
+             <button type="button"
+-                    @click="if (confirm('Log out?')) { ui.settingsOpen = false; window.location.href = '{{ route('dashboard') }}?loggedOut=1'; }"
++                    @click="if (confirm('Log out?')) { document.getElementById('logout-form').submit(); }"
+                     class="w-full flex items-center gap-3 py-3 border-t border-curema-border text-sm font-medium text-red-500">
+                 ↪ Log Out
+             </button>
+diff --git a/routes/auth.php b/routes/auth.php
+new file mode 100644
+index 0000000..f5418e9
+--- /dev/null
++++ b/routes/auth.php
+@@ -0,0 +1,21 @@
++<?php
++
++use App\Http\Controllers\AuthController;
++use Illuminate\Support\Facades\Route;
++
++/*
++ * Auth belongs to the shared `users` table (see the "SHARED / CORE TABLE"
++ * note on its migration), so this lives at the app root alongside
++ * routes/web.php rather than under any one sub-module.
++ */
++Route::middleware('guest')->group(function () {
++    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
++    Route::post('/login', [AuthController::class, 'login']);
++
++    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
++    Route::post('/register', [AuthController::class, 'register']);
++});
++
++Route::middleware('auth')->group(function () {
++    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
++});
+diff --git a/routes/web.php b/routes/web.php
+index 2983435..e03c9ff 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -1,11 +1,13 @@
+ <?php
+ 
++use App\Http\Controllers\AccountController;
+ use Illuminate\Support\Facades\Route;
+ 
+ Route::get('/', function () {
+     return redirect()->route('dashboard');
+ });
+ 
++require __DIR__.'/auth.php';
+ require __DIR__.'/dashboard.php';
+ require __DIR__.'/ascm.php';
+ require __DIR__.'/mock-ecommerce.php';
+@@ -16,7 +18,10 @@
+ require __DIR__.'/sales-order-management.php';
+ require __DIR__.'/sales-performance-reporting.php';
+ 
+-Route::get('/account', fn () => view('coming-soon', ['pageTitle' => 'Account']))->name('account');
++Route::middleware('auth')->group(function () {
++    Route::get('/account', [AccountController::class, 'show'])->name('account');
++    Route::patch('/account', [AccountController::class, 'update'])->name('account.update');
++});
+ Route::get('/after-sales-support', fn () => redirect()->route('ascm.index'))->name('after-sales-support');
+ Route::get('/sales-order', fn () => redirect()->route('sales-order-management.index'))->name('sales-order');
+ Route::get('/sales-report', fn () => redirect()->route('sales-performance-reporting.dashboard'))->name('sales-report');

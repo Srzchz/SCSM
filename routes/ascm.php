@@ -16,6 +16,7 @@ Route::get('/ascm', fn () => redirect()->route('ascm.cases'))->name('ascm.dashbo
 Route::prefix('ascm')->name('ascm.')->group(function () {
     Route::prefix('cases')->name('cases.')->group(function () {
         Route::patch('{case}/status', [CaseController::class, 'updateStatus'])->name('update-status');
+        Route::patch('{case}/assign', [CaseController::class, 'assign'])->name('assign');
         Route::post('{case}/notes', [CaseController::class, 'storeNote'])->name('notes.store');
         Route::patch('{case}/escalate', [CaseController::class, 'escalate'])->name('escalate');
         Route::patch('{case}/close', [CaseController::class, 'close'])->name('close');
@@ -23,6 +24,7 @@ Route::prefix('ascm')->name('ascm.')->group(function () {
 
     Route::prefix('warranty')->name('warranty.')->group(function () {
         Route::patch('{claim}/decision', [WarrantyController::class, 'updateDecision'])->name('decision');
+        Route::patch('{claim}/assign', [WarrantyController::class, 'assign'])->name('assign');
         Route::post('{claim}/notes', [WarrantyController::class, 'storeNote'])->name('notes.store');
         Route::post('{claim}/repair', [WarrantyController::class, 'storeRepair'])->name('repair.store');
     });

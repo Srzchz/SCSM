@@ -1,0 +1,615 @@
+From 55f65f573e1ae2a56d59de804a446fc3023e4151 Mon Sep 17 00:00:00 2001
+From: Claude <claude@anthropic.com>
+Date: Sun, 26 Jul 2026 11:07:33 +0000
+Subject: [PATCH 2/2] Case + warranty claim assignment (ASCM)
+
+Implements the still-to-build case assignment feature, plus the equivalent
+for warranty claims (which needed a schema change first, since
+ascm_warranty_claims had no assigned_to column).
+
+Case assignment:
+- CaseController::assign() -- validates assigned_to (nullable, must exist
+  in users), updates the case, logs a CaseNote with entry_type:
+  'assignment'.
+- PATCH ascm/cases/{case}/assign route.
+- AscmShellController now passes $assignableUsers (role=employee only,
+  now that roles exist) to both the cases and warranty views.
+- cases.blade.php: Assigned column + assign <select> in the off-canvas
+  panel, prefilled with the row's current assignee and pointed at the
+  right case's /assign URL.
+
+Warranty claim assignment:
+- Migration: assigned_to (nullable FK -> users.id) on
+  ascm_warranty_claims, same shape as ascm_cases.assigned_to.
+- Migration: adds 'assignment' to ascm_warranty_claim_notes.note_type
+  enum (mirrors ascm_case_notes.entry_type, which already had it) --
+  raw ALTER...MODIFY on MySQL / drop+recreate on SQLite, same pattern as
+  the users.role refactor migration and for the same doctrine/dbal
+  reason.
+- WarrantyClaim::assignee() relation.
+- WarrantyController::assign() + route + note-logging, same pattern as
+  cases.
+- warranty.blade.php: same Assigned column + assign <select> treatment.
+
+Assignment sync between linked cases and claims (raised during review):
+flagging a warranty issue through the mock e-commerce trigger
+(HelpDeskMockController -> CaseController::store) already creates a case
+and, when there's an eligible registration, a claim with case_id pointing
+at it -- so a case and a claim can legitimately be the same piece of
+work. To keep them from drifting apart:
+- CaseController::assign() cascades the new assignee down to every
+  warranty claim linked to that case (a case can have several -- see
+  SupportCase::warrantyClaims, hasMany) and logs a synced 'assignment'
+  note on each.
+- WarrantyController::assign() cascades the new assignee up to the one
+  case a claim is linked to, if any (case_id is nullable/singular), and
+  logs a synced 'assignment' note on the case.
+
+Not fixed (pre-existing, out of scope): WarrantyController::storeNote()
+saves note_type: 'internal', which was never a valid
+ascm_warranty_claim_notes.note_type value (decision/service_plan/general,
+now +assignment). Flagging separately rather than folding into this
+patch.
+---
+ app/Http/Controllers/AscmShellController.php  | 18 ++++-
+ .../ASCM/Controllers/CaseController.php       | 57 ++++++++++++++++
+ .../ASCM/Controllers/WarrantyController.php   | 55 +++++++++++++++
+ app/Modules/ASCM/Models/WarrantyClaim.php     |  6 ++
+ ...d_assigned_to_to_warranty_claims_table.php | 31 +++++++++
+ ...ment_to_warranty_claim_notes_note_type.php | 67 +++++++++++++++++++
+ resources/views/ascm/cases.blade.php          | 26 ++++++-
+ resources/views/ascm/warranty.blade.php       | 26 ++++++-
+ routes/ascm.php                               |  2 +
+ 9 files changed, 284 insertions(+), 4 deletions(-)
+ create mode 100644 database/migrations/2026_07_27_000001_add_assigned_to_to_warranty_claims_table.php
+ create mode 100644 database/migrations/2026_07_27_000002_add_assignment_to_warranty_claim_notes_note_type.php
+
+diff --git a/app/Http/Controllers/AscmShellController.php b/app/Http/Controllers/AscmShellController.php
+index b64592f..40d0be1 100644
+--- a/app/Http/Controllers/AscmShellController.php
++++ b/app/Http/Controllers/AscmShellController.php
+@@ -2,6 +2,7 @@
+ 
+ namespace App\Http\Controllers;
+ 
++use App\Models\User;
+ use App\Modules\ASCM\Models\SupportCase;
+ use App\Modules\ASCM\Models\WarrantyClaim;
+ use Illuminate\Http\Request;
+@@ -21,19 +22,31 @@ class AscmShellController extends Controller
+     public function cases(Request $request)
+     {
+         [$cases, $caseStats, $caseDetails, $caseFilters] = $this->loadCases($request);
++        $assignableUsers = $this->loadAssignableUsers();
+ 
+-        return view('ascm.cases', compact('cases', 'caseStats', 'caseDetails', 'caseFilters'))
++        return view('ascm.cases', compact('cases', 'caseStats', 'caseDetails', 'caseFilters', 'assignableUsers'))
+             ->with('active', 'Cases');
+     }
+ 
+     public function warranty(Request $request)
+     {
+         [$warrantyClaims, $warrantyStats, $warrantyDetails, $warrantyFilters] = $this->loadWarrantyClaims($request);
++        $assignableUsers = $this->loadAssignableUsers();
+ 
+-        return view('ascm.warranty', compact('warrantyClaims', 'warrantyStats', 'warrantyDetails', 'warrantyFilters'))
++        return view('ascm.warranty', compact('warrantyClaims', 'warrantyStats', 'warrantyDetails', 'warrantyFilters', 'assignableUsers'))
+             ->with('active', 'Warranty');
+     }
+ 
++    /**
++     * Now that roles exist, scope who can be assigned a case/claim to
++     * employees only -- an earlier draft of this used *all* users, back
++     * before roles existed to scope by.
++     */
++    private function loadAssignableUsers()
++    {
++        return User::where('role', User::ROLE_EMPLOYEE)->orderBy('name')->get(['id', 'name']);
++    }
++
+     /**
+      * Stats are computed against the full (unfiltered) table so the
+      * "Open / Pending / Resolved" counters stay a stable overall reference
+@@ -207,6 +220,7 @@ private function loadWarrantyClaims(Request $request): array
+             'warrantyRegistration.product',
+             'warrantyRegistration.order',
+             'case',
++            'assignee',
+             'decisionBy',
+             'notes' => fn ($q) => $q->latest(),
+             'notes.author',
+diff --git a/app/Modules/ASCM/Controllers/CaseController.php b/app/Modules/ASCM/Controllers/CaseController.php
+index c3df723..768fc29 100644
+--- a/app/Modules/ASCM/Controllers/CaseController.php
++++ b/app/Modules/ASCM/Controllers/CaseController.php
+@@ -4,10 +4,12 @@
+ 
+ use App\Http\Controllers\Controller;
+ 
++use App\Models\User;
+ use App\Modules\ASCM\Models\CaseNote;
+ use App\Modules\ASCM\Models\CaseStatusHistory;
+ use App\Modules\ASCM\Models\SupportCase;
+ use App\Modules\ASCM\Models\WarrantyClaim;
++use App\Modules\ASCM\Models\WarrantyClaimNote;
+ use App\Modules\ASCM\Models\WarrantyRegistration;
+ use Illuminate\Http\JsonResponse;
+ use Illuminate\Http\RedirectResponse;
+@@ -177,6 +179,61 @@ public function storeNote(Request $request, SupportCase $case): RedirectResponse
+         return $this->backToCases("Note added to {$case->case_number}.");
+     }
+ 
++    /**
++     * Reassigns who's currently working the case. `assigned_to` is
++     * nullable so a case can be explicitly unassigned again.
++     *
++     * A case can have several linked warranty claims (SupportCase::
++     * warrantyClaims is hasMany). Reassigning the case cascades the same
++     * assignee down to every one of them, on the assumption that whoever
++     * owns the case owns the claims opened under it too -- see the
++     * matching cascade the other direction in
++     * WarrantyController::assign.
++     */
++    public function assign(Request $request, SupportCase $case): RedirectResponse
++    {
++        $data = $request->validate([
++            'assigned_to' => 'nullable|integer|exists:users,id',
++        ]);
++
++        $from = $case->assigned_to;
++        $to = $data['assigned_to'] ?? null;
++
++        if ($from == $to) {
++            return $this->backToCases("Case {$case->case_number} is already assigned as requested.");
++        }
++
++        $case->assigned_to = $to;
++        $case->save();
++
++        $toName = $to ? (User::find($to)?->name ?? 'someone') : null;
++
++        CaseNote::create([
++            'case_id' => $case->id,
++            'author_id' => auth()->id(),
++            'entry_type' => 'assignment',
++            'visibility' => 'internal',
++            'title' => 'Assignment updated',
++            'body' => $toName ? "Case assigned to {$toName}." : 'Case unassigned.',
++        ]);
++
++        foreach ($case->warrantyClaims as $claim) {
++            $claim->assigned_to = $to;
++            $claim->save();
++
++            WarrantyClaimNote::create([
++                'warranty_claim_id' => $claim->id,
++                'author_id' => auth()->id(),
++                'note_type' => 'assignment',
++                'body' => $toName
++                    ? "Assignment synced from linked case {$case->case_number}: assigned to {$toName}."
++                    : "Assignment synced from linked case {$case->case_number}: unassigned.",
++            ]);
++        }
++
++        return $this->backToCases($toName ? "Case {$case->case_number} assigned to {$toName}." : "Case {$case->case_number} unassigned.");
++    }
++
+     public function escalate(SupportCase $case): RedirectResponse
+     {
+         $case->update(['priority' => 'critical']);
+diff --git a/app/Modules/ASCM/Controllers/WarrantyController.php b/app/Modules/ASCM/Controllers/WarrantyController.php
+index 7db2fae..5fd4c9f 100644
+--- a/app/Modules/ASCM/Controllers/WarrantyController.php
++++ b/app/Modules/ASCM/Controllers/WarrantyController.php
+@@ -4,6 +4,8 @@
+ 
+ use App\Http\Controllers\Controller;
+ 
++use App\Models\User;
++use App\Modules\ASCM\Models\CaseNote;
+ use App\Modules\ASCM\Models\WarrantyClaim;
+ use App\Modules\ASCM\Models\WarrantyClaimNote;
+ use App\Modules\ASCM\Models\WarrantyRepair;
+@@ -49,6 +51,59 @@ public function updateDecision(Request $request, WarrantyClaim $claim): Redirect
+         return $this->backToWarranty($request, "Claim {$claim->claim_number} updated to " . ucfirst(str_replace('_', ' ', $to)) . '.');
+     }
+ 
++    /**
++     * Reassigns who's currently working the claim. Mirrors
++     * CaseController::assign, and cascades the other direction: a claim
++     * belongs to at most one case (case_id is nullable, singular), so if
++     * this claim is linked to a case, that case's assigned_to is synced
++     * to match -- whoever's now handling the claim is treated as now
++     * handling the case it came from too.
++     */
++    public function assign(Request $request, WarrantyClaim $claim): RedirectResponse
++    {
++        $data = $request->validate([
++            'assigned_to' => 'nullable|integer|exists:users,id',
++        ]);
++
++        $from = $claim->assigned_to;
++        $to = $data['assigned_to'] ?? null;
++
++        if ($from == $to) {
++            return $this->backToWarranty($request, "Claim {$claim->claim_number} is already assigned as requested.");
++        }
++
++        $claim->assigned_to = $to;
++        $claim->save();
++
++        $toName = $to ? (User::find($to)?->name ?? 'someone') : null;
++
++        WarrantyClaimNote::create([
++            'warranty_claim_id' => $claim->id,
++            'author_id' => auth()->id(),
++            'note_type' => 'assignment',
++            'body' => $toName ? "Claim assigned to {$toName}." : 'Claim unassigned.',
++        ]);
++
++        if ($claim->case_id) {
++            $case = $claim->case;
++            $case->assigned_to = $to;
++            $case->save();
++
++            CaseNote::create([
++                'case_id' => $case->id,
++                'author_id' => auth()->id(),
++                'entry_type' => 'assignment',
++                'visibility' => 'internal',
++                'title' => 'Assignment updated',
++                'body' => $toName
++                    ? "Assignment synced from linked claim {$claim->claim_number}: assigned to {$toName}."
++                    : "Assignment synced from linked claim {$claim->claim_number}: unassigned.",
++            ]);
++        }
++
++        return $this->backToWarranty($request, $toName ? "Claim {$claim->claim_number} assigned to {$toName}." : "Claim {$claim->claim_number} unassigned.");
++    }
++
+     public function storeNote(Request $request, WarrantyClaim $claim): RedirectResponse
+     {
+         $data = $request->validate([
+diff --git a/app/Modules/ASCM/Models/WarrantyClaim.php b/app/Modules/ASCM/Models/WarrantyClaim.php
+index 97afe07..c71aad9 100644
+--- a/app/Modules/ASCM/Models/WarrantyClaim.php
++++ b/app/Modules/ASCM/Models/WarrantyClaim.php
+@@ -25,6 +25,7 @@ class WarrantyClaim extends Model
+         'estimated_amount',
+         'approved_amount',
+         'status',
++        'assigned_to',
+         'decision_by',
+         'decision_at',
+     ];
+@@ -66,6 +67,11 @@ public function case(): BelongsTo
+         return $this->belongsTo(SupportCase::class, 'case_id');
+     }
+ 
++    public function assignee(): BelongsTo
++    {
++        return $this->belongsTo(User::class, 'assigned_to');
++    }
++
+     public function decisionBy(): BelongsTo
+     {
+         return $this->belongsTo(User::class, 'decision_by');
+diff --git a/database/migrations/2026_07_27_000001_add_assigned_to_to_warranty_claims_table.php b/database/migrations/2026_07_27_000001_add_assigned_to_to_warranty_claims_table.php
+new file mode 100644
+index 0000000..8c62912
+--- /dev/null
++++ b/database/migrations/2026_07_27_000001_add_assigned_to_to_warranty_claims_table.php
+@@ -0,0 +1,31 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\Schema;
++
++/**
++ * `decision_by` records who approved/rejected a claim after the fact --
++ * it says nothing about who's currently working it. `assigned_to` is the
++ * "who owns this claim right now" column, mirroring ascm_cases.assigned_to
++ * (same nullable-FK-to-users shape, same nullOnDelete so removing a user
++ * doesn't take the claim down with them).
++ */
++return new class extends Migration
++{
++    public function up(): void
++    {
++        Schema::table('ascm_warranty_claims', function (Blueprint $table) {
++            $table->unsignedInteger('assigned_to')->nullable()->after('case_id');
++            $table->foreign('assigned_to')->references('id')->on('users')->nullOnDelete();
++        });
++    }
++
++    public function down(): void
++    {
++        Schema::table('ascm_warranty_claims', function (Blueprint $table) {
++            $table->dropForeign(['assigned_to']);
++            $table->dropColumn('assigned_to');
++        });
++    }
++};
+diff --git a/database/migrations/2026_07_27_000002_add_assignment_to_warranty_claim_notes_note_type.php b/database/migrations/2026_07_27_000002_add_assignment_to_warranty_claim_notes_note_type.php
+new file mode 100644
+index 0000000..76153af
+--- /dev/null
++++ b/database/migrations/2026_07_27_000002_add_assignment_to_warranty_claim_notes_note_type.php
+@@ -0,0 +1,67 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Schema;
++
++/**
++ * ascm_case_notes.entry_type already has an 'assignment' value reserved
++ * for exactly this ("Assigned to L2" style entries) -- ascm_warranty_claim_notes
++ * never got the equivalent, since claims had no assigned_to to log a
++ * change against until the previous migration. Adding it here so
++ * WarrantyController::assign can log the same way CaseController::assign
++ * does.
++ *
++ * Same MySQL-vs-SQLite split as the users.role refactor migration, and
++ * for the same reason: no doctrine/dbal installed, so widening a MySQL
++ * enum means a raw ALTER...MODIFY, and SQLite enums are a CHECK
++ * constraint baked into CREATE TABLE with no ALTER COLUMN to widen it.
++ * Drop+recreate is fine here because the project always runs
++ * migrate:fresh in development (see handoff notes) -- there's no
++ * persisted data on SQLite to carry across, same as that migration.
++ */
++return new class extends Migration
++{
++    public function up(): void
++    {
++        $driver = Schema::getConnection()->getDriverName();
++
++        if ($driver === 'sqlite') {
++            Schema::table('ascm_warranty_claim_notes', function (Blueprint $table) {
++                $table->dropColumn('note_type');
++            });
++            Schema::table('ascm_warranty_claim_notes', function (Blueprint $table) {
++                $table->enum('note_type', ['decision', 'service_plan', 'general', 'assignment'])
++                    ->default('general')
++                    ->after('author_id');
++            });
++        } else {
++            DB::statement(
++                "ALTER TABLE ascm_warranty_claim_notes MODIFY note_type " .
++                "ENUM('decision','service_plan','general','assignment') NOT NULL DEFAULT 'general'"
++            );
++        }
++    }
++
++    public function down(): void
++    {
++        $driver = Schema::getConnection()->getDriverName();
++
++        if ($driver === 'sqlite') {
++            Schema::table('ascm_warranty_claim_notes', function (Blueprint $table) {
++                $table->dropColumn('note_type');
++            });
++            Schema::table('ascm_warranty_claim_notes', function (Blueprint $table) {
++                $table->enum('note_type', ['decision', 'service_plan', 'general'])
++                    ->default('general')
++                    ->after('author_id');
++            });
++        } else {
++            DB::statement(
++                "ALTER TABLE ascm_warranty_claim_notes MODIFY note_type " .
++                "ENUM('decision','service_plan','general') NOT NULL DEFAULT 'general'"
++            );
++        }
++    }
++};
+diff --git a/resources/views/ascm/cases.blade.php b/resources/views/ascm/cases.blade.php
+index 6089183..b31bf7e 100644
+--- a/resources/views/ascm/cases.blade.php
++++ b/resources/views/ascm/cases.blade.php
+@@ -79,6 +79,21 @@
+                     <button type="submit" class="btn btn-primary">Update</button>
+                 </form>
+ 
++                <form class="detail-actions" id="panel-case-assign-form" method="POST" action="#">
++                    @csrf
++                    @method('PATCH')
++                    <div class="field-inline">
++                        <label class="filter-label" for="panel-case-assign">Assigned to</label>
++                        <select id="panel-case-assign" name="assigned_to" class="input">
++                            <option value="">Unassigned</option>
++                            @foreach ($assignableUsers as $user)
++                                <option value="{{ $user->id }}">{{ $user->name }}</option>
++                            @endforeach
++                        </select>
++                    </div>
++                    <button type="submit" class="btn btn-primary">Assign</button>
++                </form>
++
+                 <div class="tabs" role="tablist" aria-label="Case tabs">
+                     <button type="button" class="tab tab-active" role="tab" aria-selected="true" data-tab="timeline">Timeline</button>
+                     <button type="button" class="tab" role="tab" aria-selected="false" data-tab="attachments">Attachments</button>
+@@ -192,6 +207,7 @@
+                             <th>Category</th>
+                             <th>Priority</th>
+                             <th>Status</th>
++                            <th>Assigned</th>
+                             <th>Activity</th>
+                             <th style="width:56px;text-align:right;">Actions</th>
+                         </tr>
+@@ -224,6 +240,7 @@
+                                 <td>{{ $case->category }}</td>
+                                 <td><span class="pill {{ $priorityPill[$case->priority] ?? 'pill-gray' }}">{{ ucfirst($case->priority) }}</span></td>
+                                 <td><span class="pill {{ $statusPill[$case->status] ?? 'pill-gray' }}">{{ ucfirst($case->status) }}</span></td>
++                                <td>{{ $case->assignee->name ?? 'Unassigned' }}</td>
+                                 <td>
+                                     <div class="cell-primary">SLA {{ $case->sla_due_at?->format('M j, Y') ?? '—' }}</div>
+                                     <div class="cell-sub">Updated {{ $case->updated_at->diffForHumans() }}</div>
+@@ -240,6 +257,7 @@
+                                                     data-case-pk="{{ $case->id }}"
+                                                     data-case-id="{{ $case->case_number }}"
+                                                     data-case-status="{{ $case->status }}"
++                                                    data-case-assigned="{{ $case->assigned_to }}"
+                                                     data-case-meta="{{ $caseMeta }}"
+                                                     data-case-payload='{!! $casePayload !!}'>View details</button>
+ 
+@@ -249,6 +267,7 @@
+                                                     data-case-pk="{{ $case->id }}"
+                                                     data-case-id="{{ $case->case_number }}"
+                                                     data-case-status="{{ $case->status }}"
++                                                    data-case-assigned="{{ $case->assigned_to }}"
+                                                     data-case-meta="{{ $caseMeta }}"
+                                                     data-case-payload='{!! $casePayload !!}'>Add note</button>
+ 
+@@ -273,7 +292,7 @@
+                             </tr>
+                         @empty
+                             <tr>
+-                                <td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:28px;">
++                                <td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:28px;">
+                                     No cases yet — once your seeder runs, they'll show up here.
+                                 </td>
+                             </tr>
+@@ -447,6 +466,8 @@
+         const closeBtn = document.getElementById('case-detail-close');
+         const statusForm = document.getElementById('panel-case-status-form');
+         const statusSelect = document.getElementById('panel-case-status');
++        const assignForm = document.getElementById('panel-case-assign-form');
++        const assignSelect = document.getElementById('panel-case-assign');
+         const noteForm = document.getElementById('panel-case-note-form');
+         const noteTextarea = noteForm.querySelector('textarea[name="body"]');
+         const noteCancelBtn = document.getElementById('panel-case-note-cancel');
+@@ -500,6 +521,7 @@ function openPanel(btn) {
+             const id = btn.getAttribute('data-case-id') || '—';
+             const meta = btn.getAttribute('data-case-meta') || '';
+             const status = btn.getAttribute('data-case-status') || 'pending';
++            const assignedTo = btn.getAttribute('data-case-assigned') || '';
+ 
+             let payload = {};
+             try { payload = JSON.parse(btn.getAttribute('data-case-payload') || '{}'); } catch (e) { payload = {}; }
+@@ -510,6 +532,8 @@ function openPanel(btn) {
+ 
+             if (statusSelect) statusSelect.value = status;
+             if (statusForm) statusForm.action = '{{ url('/ascm/cases') }}/' + pk + '/status' + (currentQuery ? ('?' + currentQuery) : '');
++            if (assignSelect) assignSelect.value = assignedTo;
++            if (assignForm) assignForm.action = '{{ url('/ascm/cases') }}/' + pk + '/assign' + (currentQuery ? ('?' + currentQuery) : '');
+             if (noteForm) noteForm.action = '{{ url('/ascm/cases') }}/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
+ 
+             renderTimeline('panel-case-timeline', notes, 'No notes yet.');
+diff --git a/resources/views/ascm/warranty.blade.php b/resources/views/ascm/warranty.blade.php
+index 2cdfff3..16a2dc1 100644
+--- a/resources/views/ascm/warranty.blade.php
++++ b/resources/views/ascm/warranty.blade.php
+@@ -77,6 +77,21 @@
+                     <button type="submit" class="btn btn-primary">Save Decision</button>
+                 </form>
+ 
++                <form class="detail-actions" id="panel-warranty-assign-form" method="POST" action="#">
++                    @csrf
++                    @method('PATCH')
++                    <div class="field-inline">
++                        <label class="filter-label" for="panel-warranty-assign">Assigned to</label>
++                        <select id="panel-warranty-assign" name="assigned_to" class="input">
++                            <option value="">Unassigned</option>
++                            @foreach ($assignableUsers as $user)
++                                <option value="{{ $user->id }}">{{ $user->name }}</option>
++                            @endforeach
++                        </select>
++                    </div>
++                    <button type="submit" class="btn btn-primary">Assign</button>
++                </form>
++
+                 <div class="detail-columns">
+                     <div class="mini-card">
+                         <div class="mini-title">Coverage Summary</div>
+@@ -207,6 +222,7 @@
+                             <th>Customer</th>
+                             <th>Coverage</th>
+                             <th>Claim Status</th>
++                            <th>Assigned</th>
+                             <th>Amount</th>
+                             <th style="width:56px;text-align:right;">Actions</th>
+                         </tr>
+@@ -239,6 +255,7 @@
+                                 </td>
+                                 <td><span class="pill {{ $coveragePill[$coverageKey] ?? 'pill-gray' }}">{{ $registration ? ucfirst(str_replace('_', ' ', $registration->coverage_status)) : '—' }}</span></td>
+                                 <td><span class="pill {{ $claimStatusPill[$claim->status] ?? 'pill-gray' }}">{{ ucfirst(str_replace('_', ' ', $claim->status)) }}</span></td>
++                                <td>{{ $claim->assignee->name ?? 'Unassigned' }}</td>
+                                 <td>{{ $claim->approved_amount ? '$' . number_format((float) $claim->approved_amount, 2) : ($claim->estimated_amount ? '$' . number_format((float) $claim->estimated_amount, 2) : '—') }}</td>
+                                 <td>
+                                     <div class="action-menu">
+@@ -252,6 +269,7 @@
+                                                     data-claim-pk="{{ $claim->id }}"
+                                                     data-claim-id="{{ $claim->claim_number }}"
+                                                     data-claim-status="{{ $claim->status }}"
++                                                    data-claim-assigned="{{ $claim->assigned_to }}"
+                                                     data-claim-meta="{{ $claimMeta }}"
+                                                     data-claim-payload='{!! $claimPayload !!}'>View details</button>
+ 
+@@ -261,6 +279,7 @@
+                                                     data-claim-pk="{{ $claim->id }}"
+                                                     data-claim-id="{{ $claim->claim_number }}"
+                                                     data-claim-status="{{ $claim->status }}"
++                                                    data-claim-assigned="{{ $claim->assigned_to }}"
+                                                     data-claim-meta="{{ $claimMeta }}"
+                                                     data-claim-payload='{!! $claimPayload !!}'>Add note</button>
+ 
+@@ -291,7 +310,7 @@
+                             </tr>
+                         @empty
+                             <tr>
+-                                <td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:28px;">
++                                <td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:28px;">
+                                     No warranty claims yet — once your seeder runs, they'll show up here.
+                                 </td>
+                             </tr>
+@@ -490,6 +509,8 @@
+         const closeBtn = document.getElementById('warranty-detail-close');
+         const decisionForm = document.getElementById('panel-warranty-decision-form');
+         const decisionSelect = document.getElementById('panel-warranty-decision');
++        const assignForm = document.getElementById('panel-warranty-assign-form');
++        const assignSelect = document.getElementById('panel-warranty-assign');
+         const noteForm = document.getElementById('panel-warranty-note-form');
+         const noteTextarea = noteForm.querySelector('textarea[name="body"]');
+         const noteCancelBtn = document.getElementById('panel-warranty-note-cancel');
+@@ -549,6 +570,7 @@ function openPanel(btn) {
+             const id = btn.getAttribute('data-claim-id') || '—';
+             const meta = btn.getAttribute('data-claim-meta') || '';
+             const status = btn.getAttribute('data-claim-status') || 'submitted';
++            const assignedTo = btn.getAttribute('data-claim-assigned') || '';
+ 
+             let payload = {};
+             try { payload = JSON.parse(btn.getAttribute('data-claim-payload') || '{}'); } catch (e) { payload = {}; }
+@@ -561,6 +583,8 @@ function openPanel(btn) {
+ 
+             if (decisionSelect) decisionSelect.value = status;
+             if (decisionForm) decisionForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/decision' + (currentQuery ? ('?' + currentQuery) : '');
++            if (assignSelect) assignSelect.value = assignedTo;
++            if (assignForm) assignForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/assign' + (currentQuery ? ('?' + currentQuery) : '');
+             if (noteForm) noteForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
+             if (repairForm) repairForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/repair' + (currentQuery ? ('?' + currentQuery) : '');
+ 
+diff --git a/routes/ascm.php b/routes/ascm.php
+index f523d12..b2ae3e8 100644
+--- a/routes/ascm.php
++++ b/routes/ascm.php
+@@ -16,6 +16,7 @@
+ Route::prefix('ascm')->name('ascm.')->group(function () {
+     Route::prefix('cases')->name('cases.')->group(function () {
+         Route::patch('{case}/status', [CaseController::class, 'updateStatus'])->name('update-status');
++        Route::patch('{case}/assign', [CaseController::class, 'assign'])->name('assign');
+         Route::post('{case}/notes', [CaseController::class, 'storeNote'])->name('notes.store');
+         Route::patch('{case}/escalate', [CaseController::class, 'escalate'])->name('escalate');
+         Route::patch('{case}/close', [CaseController::class, 'close'])->name('close');
+@@ -23,6 +24,7 @@
+ 
+     Route::prefix('warranty')->name('warranty.')->group(function () {
+         Route::patch('{claim}/decision', [WarrantyController::class, 'updateDecision'])->name('decision');
++        Route::patch('{claim}/assign', [WarrantyController::class, 'assign'])->name('assign');
+         Route::post('{claim}/notes', [WarrantyController::class, 'storeNote'])->name('notes.store');
+         Route::post('{claim}/repair', [WarrantyController::class, 'storeRepair'])->name('repair.store');
+     });
+-- 
+2.43.0
+

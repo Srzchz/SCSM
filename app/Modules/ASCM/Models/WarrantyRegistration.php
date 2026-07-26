@@ -79,4 +79,9 @@ class WarrantyRegistration extends Model
 
         return $status;
     }
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\WarrantyRegistrationFactory::new();
+    }
 }

@@ -8,9 +8,9 @@
 
     @include('partials.topbar')
 
-    <div class="flex items-start gap-4">
+    <div class="flex flex-col lg:flex-row items-start gap-4">
 
-        <div class="flex-1 flex flex-col gap-4 min-w-0">
+        <div class="flex-1 flex flex-col gap-4 min-w-0 w-full">
 
             <div class="grid grid-cols-1 md:grid-cols-[0.85fr_1.4fr] gap-4">
                 <div class="bg-curema-card rounded-2xl border border-curema-border p-5 h-[400px] flex flex-col">
@@ -60,7 +60,7 @@
             ])
         </div>
 
-        <div class="w-[220px] shrink-0 flex flex-col gap-4">
+        <div class="w-full lg:w-[220px] shrink-0 flex flex-col gap-4">
             @include('partials.customer-insight')
             @include('partials.upcoming-followups')
             @include('partials.recent-activities')

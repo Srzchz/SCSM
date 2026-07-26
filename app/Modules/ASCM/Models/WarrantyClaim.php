@@ -25,6 +25,7 @@ class WarrantyClaim extends Model
         'estimated_amount',
         'approved_amount',
         'status',
+        'assigned_to',
         'decision_by',
         'decision_at',
     ];
@@ -66,6 +67,11 @@ class WarrantyClaim extends Model
         return $this->belongsTo(SupportCase::class, 'case_id');
     }
 
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
     public function decisionBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'decision_by');
@@ -84,5 +90,10 @@ class WarrantyClaim extends Model
     public function repairs(): HasMany
     {
         return $this->hasMany(WarrantyRepair::class);
+    }
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\WarrantyClaimFactory::new();
     }
 }
