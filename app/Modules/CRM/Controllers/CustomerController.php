@@ -7,7 +7,6 @@ use App\Models\Customer;
 use App\Modules\CRM\Models\CustomerInsight;
 use App\Support\CustomerActivityService;
 use App\Support\CustomerInsightService;
-use App\Support\CustomerActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -20,10 +19,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->paginatedCustomersTable($request->query('q')),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-<<<<<<< HEAD
-=======
-            'activities' => CustomerActivityService::recentActivities(),
->>>>>>> 07bdf13d5d768609bc852180cc69152ffadbf351
         ]);
     }
 
@@ -117,10 +112,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->allCustomersTable(),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-<<<<<<< HEAD
-=======
-            'activities' => CustomerActivityService::recentActivities(),
->>>>>>> 07bdf13d5d768609bc852180cc69152ffadbf351
         ]);
     }
 
@@ -131,10 +122,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->allCustomersTable(),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-<<<<<<< HEAD
-=======
-            'activities' => CustomerActivityService::recentActivities(),
->>>>>>> 07bdf13d5d768609bc852180cc69152ffadbf351
         ]);
     }
 
@@ -145,10 +132,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->allCustomersTable(),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-<<<<<<< HEAD
-=======
-            'activities' => CustomerActivityService::recentActivities(),
->>>>>>> 07bdf13d5d768609bc852180cc69152ffadbf351
         ]);
     }
 

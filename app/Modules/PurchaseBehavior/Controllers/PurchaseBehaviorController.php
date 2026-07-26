@@ -44,10 +44,6 @@ class PurchaseBehaviorController extends Controller
             'tableCustomers' => $tableCustomers,
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-<<<<<<< HEAD
-=======
-            'activities' => CustomerActivityService::recentActivities(),
->>>>>>> 07bdf13d5d768609bc852180cc69152ffadbf351
         ]);
     }
 
