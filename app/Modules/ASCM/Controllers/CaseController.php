@@ -48,6 +48,14 @@ class CaseController extends Controller
         }
 
         $order = $orderLookup->json();
+        $priority = $data['priority'] ?? 'medium';
+
+        // Hours-to-respond per priority, matching the four values the
+        // 'priority' column actually allows. Feeds sla_due_at, which the
+        // Cases list's Activity column reads directly — without this, a
+        // case created here (unlike ones from SupportCaseFactory, which
+        // fakes a date) would show a blank date in that column.
+        $slaHours = ['critical' => 4, 'high' => 24, 'medium' => 72, 'low' => 120];
 
         $case = SupportCase::create([
             'customer_id' => $order['customer_id'],
@@ -55,8 +63,9 @@ class CaseController extends Controller
             'order_item_id' => $order['order_item_id'],
             'product_id' => $order['product_id'],
             'category' => $data['category'],
-            'priority' => $data['priority'] ?? 'medium',
+            'priority' => $priority,
             'status' => 'pending',
+            'sla_due_at' => now()->addHours($slaHours[$priority]),
         ]);
 
         $warrantyClaim = null;
@@ -180,7 +189,8 @@ class CaseController extends Controller
 
     /**
      * Reassigns who's currently working the case. `assigned_to` is
-     * nullable so a case can be explicitly unassigned again.
+     * nullable so a case can be explicitly unassigned again. Manager-only:
+     * an employee has no business reassigning cases, themselves included.
      *
      * A case can have several linked warranty claims (SupportCase::
      * warrantyClaims is hasMany). Reassigning the case cascades the same
@@ -191,6 +201,8 @@ class CaseController extends Controller
      */
     public function assign(Request $request, SupportCase $case): RedirectResponse
     {
+        abort_unless(auth()->user()?->isManager(), 403, 'Only managers can assign cases.');
+
         $data = $request->validate([
             'assigned_to' => 'nullable|integer|exists:users,id',
         ]);

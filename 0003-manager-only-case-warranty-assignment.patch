@@ -1,0 +1,133 @@
+diff --git a/app/Modules/ASCM/Controllers/CaseController.php b/app/Modules/ASCM/Controllers/CaseController.php
+index 780b9ea..2c6387c 100644
+--- a/app/Modules/ASCM/Controllers/CaseController.php
++++ b/app/Modules/ASCM/Controllers/CaseController.php
+@@ -180,7 +180,8 @@ public function storeNote(Request $request, SupportCase $case): RedirectResponse
+ 
+     /**
+      * Reassigns who's currently working the case. `assigned_to` is
+-     * nullable so a case can be explicitly unassigned again.
++     * nullable so a case can be explicitly unassigned again. Manager-only:
++     * an employee has no business reassigning cases, themselves included.
+      *
+      * A case can have several linked warranty claims (SupportCase::
+      * warrantyClaims is hasMany). Reassigning the case cascades the same
+@@ -191,6 +192,8 @@ public function storeNote(Request $request, SupportCase $case): RedirectResponse
+      */
+     public function assign(Request $request, SupportCase $case): RedirectResponse
+     {
++        abort_unless(auth()->user()?->isManager(), 403, 'Only managers can assign cases.');
++
+         $data = $request->validate([
+             'assigned_to' => 'nullable|integer|exists:users,id',
+         ]);
+diff --git a/app/Modules/ASCM/Controllers/WarrantyController.php b/app/Modules/ASCM/Controllers/WarrantyController.php
+index b36dabe..efeca0a 100644
+--- a/app/Modules/ASCM/Controllers/WarrantyController.php
++++ b/app/Modules/ASCM/Controllers/WarrantyController.php
+@@ -50,15 +50,17 @@ public function updateDecision(Request $request, WarrantyClaim $claim): Redirect
+     }
+ 
+     /**
+-     * Reassigns who's currently working the claim. Mirrors
+-     * CaseController::assign, and cascades the other direction: a claim
+-     * belongs to at most one case (case_id is nullable, singular), so if
+-     * this claim is linked to a case, that case's assigned_to is synced
+-     * to match -- whoever's now handling the claim is treated as now
+-     * handling the case it came from too.
++     * Reassigns who's currently working the claim. Manager-only, same as
++     * CaseController::assign. Mirrors CaseController::assign, and cascades
++     * the other direction: a claim belongs to at most one case (case_id is
++     * nullable, singular), so if this claim is linked to a case, that
++     * case's assigned_to is synced to match -- whoever's now handling the
++     * claim is treated as now handling the case it came from too.
+      */
+     public function assign(Request $request, WarrantyClaim $claim): RedirectResponse
+     {
++        abort_unless(auth()->user()?->isManager(), 403, 'Only managers can assign warranty claims.');
++
+         $data = $request->validate([
+             'assigned_to' => 'nullable|integer|exists:users,id',
+         ]);
+diff --git a/resources/views/ascm/cases.blade.php b/resources/views/ascm/cases.blade.php
+index b31bf7e..ce2c834 100644
+--- a/resources/views/ascm/cases.blade.php
++++ b/resources/views/ascm/cases.blade.php
+@@ -79,20 +79,22 @@
+                     <button type="submit" class="btn btn-primary">Update</button>
+                 </form>
+ 
+-                <form class="detail-actions" id="panel-case-assign-form" method="POST" action="#">
+-                    @csrf
+-                    @method('PATCH')
+-                    <div class="field-inline">
+-                        <label class="filter-label" for="panel-case-assign">Assigned to</label>
+-                        <select id="panel-case-assign" name="assigned_to" class="input">
+-                            <option value="">Unassigned</option>
+-                            @foreach ($assignableUsers as $user)
+-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+-                            @endforeach
+-                        </select>
+-                    </div>
+-                    <button type="submit" class="btn btn-primary">Assign</button>
+-                </form>
++                @if (auth()->user()?->isManager())
++                    <form class="detail-actions" id="panel-case-assign-form" method="POST" action="#">
++                        @csrf
++                        @method('PATCH')
++                        <div class="field-inline">
++                            <label class="filter-label" for="panel-case-assign">Assigned to</label>
++                            <select id="panel-case-assign" name="assigned_to" class="input">
++                                <option value="">Unassigned</option>
++                                @foreach ($assignableUsers as $user)
++                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
++                                @endforeach
++                            </select>
++                        </div>
++                        <button type="submit" class="btn btn-primary">Assign</button>
++                    </form>
++                @endif
+ 
+                 <div class="tabs" role="tablist" aria-label="Case tabs">
+                     <button type="button" class="tab tab-active" role="tab" aria-selected="true" data-tab="timeline">Timeline</button>
+diff --git a/resources/views/ascm/warranty.blade.php b/resources/views/ascm/warranty.blade.php
+index 16a2dc1..418acbf 100644
+--- a/resources/views/ascm/warranty.blade.php
++++ b/resources/views/ascm/warranty.blade.php
+@@ -77,20 +77,22 @@
+                     <button type="submit" class="btn btn-primary">Save Decision</button>
+                 </form>
+ 
+-                <form class="detail-actions" id="panel-warranty-assign-form" method="POST" action="#">
+-                    @csrf
+-                    @method('PATCH')
+-                    <div class="field-inline">
+-                        <label class="filter-label" for="panel-warranty-assign">Assigned to</label>
+-                        <select id="panel-warranty-assign" name="assigned_to" class="input">
+-                            <option value="">Unassigned</option>
+-                            @foreach ($assignableUsers as $user)
+-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+-                            @endforeach
+-                        </select>
+-                    </div>
+-                    <button type="submit" class="btn btn-primary">Assign</button>
+-                </form>
++                @if (auth()->user()?->isManager())
++                    <form class="detail-actions" id="panel-warranty-assign-form" method="POST" action="#">
++                        @csrf
++                        @method('PATCH')
++                        <div class="field-inline">
++                            <label class="filter-label" for="panel-warranty-assign">Assigned to</label>
++                            <select id="panel-warranty-assign" name="assigned_to" class="input">
++                                <option value="">Unassigned</option>
++                                @foreach ($assignableUsers as $user)
++                                    <option value="{{ $user->id }}">{{ $user->name }}</option>
++                                @endforeach
++                            </select>
++                        </div>
++                        <button type="submit" class="btn btn-primary">Assign</button>
++                    </form>
++                @endif
+ 
+                 <div class="detail-columns">
+                     <div class="mini-card">

@@ -42,6 +42,10 @@ class DashboardController extends Controller
         [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues] = $this->loadOverview();
         $insights = CustomerInsightService::segments();
         $followUps = CustomerActivityService::upcomingFollowUps();
+<<<<<<< HEAD
+=======
+        $activities = CustomerActivityService::recentActivities();
+>>>>>>> 07bdf13d5d768609bc852180cc69152ffadbf351
 
         return view('spa', compact(
             'sections',
@@ -53,6 +57,10 @@ class DashboardController extends Controller
             'ovGrowthValues',
             'insights',
             'followUps',
+<<<<<<< HEAD
+=======
+            'activities',
+>>>>>>> 07bdf13d5d768609bc852180cc69152ffadbf351
         ));
     }
 

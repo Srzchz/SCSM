@@ -28,7 +28,7 @@ class CommunicationLogController extends Controller
             $dateKey = $date->toDateString();
             $days[] = $date->format('M j');
 
-            $dayRows = $rows->where('log_date', $dateKey);
+            $dayRows = $rows->filter(fn ($r) => $r->log_date->toDateString() === $dateKey);
             $open[] = (int) $dayRows->where('status', 'Open')->sum('count');
             $resolved[] = (int) $dayRows->where('status', 'Closed')->sum('count');
         }

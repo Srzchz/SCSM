@@ -54,13 +54,13 @@
                     <table class="w-full text-sm" data-export="true">
                         <thead>
                             <tr class="text-left text-curema-sub text-xs">
-                                <th class="font-medium pb-3">Ticket ID</th>
-                                <th class="font-medium pb-3">Customer</th>
-                                <th class="font-medium pb-3">Issue</th>
-                                <th class="font-medium pb-3">Details</th>
-                                <th class="font-medium pb-3">Date</th>
-                                <th class="font-medium pb-3">Mode</th>
-                                <th class="font-medium pb-3">Status</th>
+                                <th class="font-medium pb-3 px-3">Ticket ID</th>
+                                <th class="font-medium pb-3 px-3">Customer</th>
+                                <th class="font-medium pb-3 px-3">Issue</th>
+                                <th class="font-medium pb-3 px-3">Details</th>
+                                <th class="font-medium pb-3 px-3">Date</th>
+                                <th class="font-medium pb-3 px-3">Mode</th>
+                                <th class="font-medium pb-3 px-3">Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -68,16 +68,15 @@
                                 <tr class="border-t border-curema-border customer-row cursor-pointer hover:bg-curema-bg/60 transition"
                                     data-search="{{ strtolower($log['customer'] . ' ' . $log['issue'] . ' ' . $log['ticket_id']) }}"
                                     onclick="window.location='{{ route('customers.communication', $log['customer_id']) }}?ticket={{ $log['ticket_id'] }}'">
-                                    <td class="py-2.5 font-medium text-curema-purple">{{ $log['ticket_id'] }}</td>
-                                    <td class="flex items-center gap-2">
-                                        <span class="w-7 h-7 rounded-full bg-curema-bg flex items-center justify-center text-xs shrink-0">👤</span>
+                                    <td class="py-2.5 px-3 font-medium text-curema-purple">{{ $log['ticket_id'] }}</td>
+                                    <td class="self-center px-3">
                                         {{ $log['customer'] }}
                                     </td>
-                                    <td>{{ $log['issue'] }}</td>
-                                    <td class="max-w-xs truncate">{{ $log['details'] }}</td>
-                                    <td>{{ $log['date'] }}</td>
-                                    <td>{{ $log['mode'] }}</td>
-                                    <td>
+                                    <td class="px-3">{{ $log['issue'] }}</td>
+                                    <td class="max-w-xs truncate px-3">{{ $log['details'] }}</td>
+                                    <td class="px-3">{{ $log['date'] }}</td>
+                                    <td class="px-3">{{ $log['mode'] }}</td>
+                                    <td class="px-3">
                                         <span class="px-2.5 py-1 rounded-full text-xs font-medium {{ $statusClass[$log['status']] ?? 'bg-curema-bg' }}">
                                             {{ $log['status'] }}
                                         </span>

@@ -50,15 +50,17 @@ class WarrantyController extends Controller
     }
 
     /**
-     * Reassigns who's currently working the claim. Mirrors
-     * CaseController::assign, and cascades the other direction: a claim
-     * belongs to at most one case (case_id is nullable, singular), so if
-     * this claim is linked to a case, that case's assigned_to is synced
-     * to match -- whoever's now handling the claim is treated as now
-     * handling the case it came from too.
+     * Reassigns who's currently working the claim. Manager-only, same as
+     * CaseController::assign. Mirrors CaseController::assign, and cascades
+     * the other direction: a claim belongs to at most one case (case_id is
+     * nullable, singular), so if this claim is linked to a case, that
+     * case's assigned_to is synced to match -- whoever's now handling the
+     * claim is treated as now handling the case it came from too.
      */
     public function assign(Request $request, WarrantyClaim $claim): RedirectResponse
     {
+        abort_unless(auth()->user()?->isManager(), 403, 'Only managers can assign warranty claims.');
+
         $data = $request->validate([
             'assigned_to' => 'nullable|integer|exists:users,id',
         ]);

@@ -17,6 +17,7 @@ let state = {
   toast: null, toastTimer: null,
   quotations: [], orders: [], invoices: [], pricingRules: [],
   taxRegions: [],
+  mockSync: { inventory: null, finance: null },
   loading: true, loadError: null,
 };
 
@@ -211,7 +212,7 @@ function QuotationsTab() {
   <div class="panel">
     <div class="panel-hd">
       <input id="searchBox" class="search" placeholder="Search quotations…" value="${state.filterText}">
-      <button class="btn primary" id="newQuoteBtn">+ New Quotation</button>
+      <span class="hint" title="Quotations are created automatically when a customer places an order in the CRM.">🔄 Synced from CRM orders</span>
     </div>
     <table>
       <thead><tr><th>Quotation</th><th>Customer</th><th>Date</th><th>Valid Until</th><th>Total</th><th>Status</th><th></th></tr></thead>
@@ -307,9 +308,9 @@ function InvoicingTab() {
   const stockReserved = state.orders
     .filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled')
     .reduce((s, o) => s + o.items.reduce((s2, it) => s2 + it.qty, 0), 0);
-  const pendingSyncOrders = state.orders.filter(o => !o.hasInvoice).length;
+  const pendingSyncOrders = state.mockSync.inventory ? 0 : state.orders.filter(o => !o.hasInvoice).length;
   const arEntries = state.invoices.length;
-  const ledgerPending = outstanding.length;
+  const ledgerPending = state.mockSync.finance ? 0 : outstanding.length;
 
   return StatCards([
     { lbl: 'Paid', val: paid.length, sub: `${money(paidTotal)} collected`, acc: 'var(--rb)' },
@@ -345,6 +346,7 @@ function InvoicingTab() {
         <div><div class="sync-lbl">Pending Sync</div><div class="sync-val">${pendingSyncOrders} orders</div></div>
         <div><div class="sync-lbl">Link Status</div><div class="sync-val dot-active">● ACTIVE</div></div>
       </div>
+      ${state.mockSync.inventory ? `<div class="hint" style="margin:4px 0 0;">Last synced ${state.mockSync.inventory}</div>` : ''}
       <div class="sync-card-actions">
         <button class="btn primary sm" data-sync="inventory">Sync Inventory</button>
         <button class="btn ghost sm" data-sync-log="inventory">View Stock Log</button>
@@ -357,6 +359,7 @@ function InvoicingTab() {
         <div><div class="sync-lbl">Ledger Pending</div><div class="sync-val">${ledgerPending} entries</div></div>
         <div><div class="sync-lbl">Link Status</div><div class="sync-val dot-active">● ACTIVE</div></div>
       </div>
+      ${state.mockSync.finance ? `<div class="hint" style="margin:4px 0 0;">Last synced ${state.mockSync.finance}</div>` : ''}
       <div class="sync-card-actions">
         <button class="btn primary sm" data-sync="finance">Post Pending</button>
         <button class="btn ghost sm" data-sync-log="finance">View Ledger</button>
@@ -511,7 +514,37 @@ function Modal() {
   if (state.modal.type === 'new-rule') return NewRuleModal();
   if (state.modal.type === 'product-catalog') return ProductCatalogModal();
   if (state.modal.type === 'tax-region') return TaxRegionModal();
+  if (state.modal.type === 'sync-log') return SyncLogModal();
   return '';
+}
+
+function SyncLogModal() {
+  const mod = state.modal.module; // 'inventory' | 'finance'
+  const isInv = mod === 'inventory';
+  const synced = state.mockSync[mod];
+  const rows = isInv
+    ? state.orders.filter(o => o.status !== 'Cancelled').slice(0, 8).map(o => ({
+        ref: o.id, desc: `Reserved ${o.items.reduce((s, it) => s + it.qty, 0)} units`, status: synced ? 'Synced' : 'Pending',
+      }))
+    : state.invoices.slice(0, 8).map(i => ({
+        ref: i.id, desc: `${i.customer} — ${money(i.total)}`, status: i.status === 'Paid' ? 'Posted' : (synced ? 'Posted' : 'Pending'),
+      }));
+  return `
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <h3>${isInv ? 'Stock Log (mock)' : 'Ledger (mock)'}</h3>
+      <p class="hint" style="margin-top:-4px;">${synced ? `Last synced ${synced}.` : 'Not yet synced — showing current queue.'} This is a preview of the hand-off, not live data from that module.</p>
+      <table>
+        <thead><tr><th>${isInv ? 'Order' : 'Invoice'}</th><th>Detail</th><th>Status</th></tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr><td class="mono">${r.ref}</td><td>${r.desc}</td><td>${r.status}</td></tr>`).join('') || `<tr><td colspan="3" class="empty">Nothing to show yet.</td></tr>`}
+        </tbody>
+      </table>
+      <div class="modal-actions">
+        <button class="btn ghost" id="cancelD">Close</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 function NewQuoteModal() {
@@ -732,10 +765,13 @@ function attachEvents() {
      these are just a preview of the intended hand-off, per the modnav notes. */
   document.querySelectorAll('[data-sync]').forEach(el => { el.onclick = () => {
     const mod = el.dataset.sync;
+    state.mockSync[mod] = new Date().toLocaleString('en-PH', { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
+    render();
     showToast(mod === 'inventory' ? '📦' : '💰', mod === 'inventory' ? 'Inventory sync requested (mock).' : 'Pending entries posted to ledger (mock).');
   }; });
   document.querySelectorAll('[data-sync-log]').forEach(el => { el.onclick = () => {
-    showToast('📄', `${el.dataset.syncLog === 'inventory' ? 'Stock log' : 'Ledger'} view isn't available yet — owned by that module.`);
+    state.modal = { type: 'sync-log', module: el.dataset.syncLog };
+    render();
   }; });
 
   /* Pricing rule actions */

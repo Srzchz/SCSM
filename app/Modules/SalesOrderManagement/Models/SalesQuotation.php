@@ -18,6 +18,7 @@ class SalesQuotation extends Model
 
     protected $fillable = [
         'customer_id',
+        'source_order_id',
         'tax_region_id',
         'quotation_date',
         'valid_until',
@@ -57,5 +58,14 @@ class SalesQuotation extends Model
     public function salesOrder()
     {
         return $this->hasOne(SalesOrder::class, 'quotation_id');
+    }
+
+    /**
+     * The CRM/e-commerce order this quotation was auto-generated from, if
+     * any. Null for quotations a sales rep built by hand.
+     */
+    public function sourceOrder()
+    {
+        return $this->belongsTo(\App\Models\Order::class, 'source_order_id', 'order_id');
     }
 }
