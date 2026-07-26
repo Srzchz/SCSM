@@ -28,22 +28,4 @@ class CustomerActivityService
             ->values()
             ->all();
     }
-
-    /**
-     * Single source of truth for the "Recent Activities" widget.
-     * Most recently logged activity first.
-     */
-    public static function recentActivities(int $limit = 5): array
-    {
-        return Activity::latest()
-            ->take($limit)
-            ->get()
-            ->map(fn ($a) => [
-                'title' => $a->title,
-                'note' => $a->note,
-                'time' => $a->created_at->diffForHumans(),
-            ])
-            ->values()
-            ->all();
-    }
 }

@@ -19,7 +19,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->paginatedCustomersTable($request->query('q')),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-            'activities' => CustomerActivityService::recentActivities(),
         ]);
     }
 
@@ -113,7 +112,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->allCustomersTable(),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-            'activities' => CustomerActivityService::recentActivities(),
         ]);
     }
 
@@ -124,7 +122,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->allCustomersTable(),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-            'activities' => CustomerActivityService::recentActivities(),
         ]);
     }
 
@@ -135,7 +132,6 @@ class CustomerController extends Controller
             'tableCustomers' => $this->allCustomersTable(),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
-            'activities' => CustomerActivityService::recentActivities(),
         ]);
     }
 

@@ -63,7 +63,6 @@
         <div class="w-full lg:w-[220px] shrink-0 flex flex-col gap-4">
             @include('partials.customer-insight')
             @include('partials.upcoming-followups')
-            @include('partials.recent-activities')
         </div>
     </div>
 

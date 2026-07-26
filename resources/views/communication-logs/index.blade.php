@@ -5,8 +5,8 @@
 @php
     $active = 'Communication Logs';
     $statusClass = [
-        'New' => 'bg-curema-bluesoft text-curema-blue',
-        'Resolved' => 'bg-curema-greensoft text-curema-green',
+        'Open' => 'bg-curema-bluesoft text-curema-blue',
+        'Closed' => 'bg-curema-greensoft text-curema-green',
     ];
 @endphp
 
@@ -35,14 +35,10 @@
 
                 <div class="bg-curema-card rounded-2xl border border-curema-border p-5 h-[260px] flex flex-col">
                     <h2 class="font-semibold mb-4">Total Cases this Week</h2>
-                    <div class="grid grid-cols-3 gap-3 text-center">
+                    <div class="grid grid-cols-2 gap-3 text-center">
                         <div class="bg-curema-bluesoft rounded-xl py-4">
                             <p class="text-xl font-extrabold text-curema-blue">{{ $caseStats['open'] }}</p>
                             <p class="text-[11px] text-curema-sub mt-1">Open</p>
-                        </div>
-                        <div class="bg-curema-coral rounded-xl py-4">
-                            <p class="text-xl font-extrabold text-curema-ink">{{ $caseStats['inProgress'] }}</p>
-                            <p class="text-[11px] text-curema-sub mt-1">In Process</p>
                         </div>
                         <div class="bg-curema-greensoft rounded-xl py-4">
                             <p class="text-xl font-extrabold text-curema-green">{{ $caseStats['resolved'] }}</p>
@@ -104,7 +100,6 @@
         <div class="w-full lg:w-[220px] shrink-0 flex flex-col gap-4">
             @include('partials.customer-insight')
             @include('partials.upcoming-followups')
-            @include('partials.recent-activities')
         </div>
     </div>
 

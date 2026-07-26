@@ -150,7 +150,6 @@
         <div class="overview-side">
             @include('partials.customer-insight')
             @include('partials.upcoming-followups')
-            @include('partials.recent-activities')
         </div>
     </div>
 </div>
