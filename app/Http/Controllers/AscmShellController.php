@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
 use Illuminate\Http\Request;
@@ -21,17 +22,29 @@ class AscmShellController extends Controller
     public function cases(Request $request)
     {
         [$cases, $caseStats, $caseDetails, $caseFilters] = $this->loadCases($request);
+        $assignableUsers = $this->loadAssignableUsers();
 
-        return view('ascm.cases', compact('cases', 'caseStats', 'caseDetails', 'caseFilters'))
+        return view('ascm.cases', compact('cases', 'caseStats', 'caseDetails', 'caseFilters', 'assignableUsers'))
             ->with('active', 'Cases');
     }
 
     public function warranty(Request $request)
     {
         [$warrantyClaims, $warrantyStats, $warrantyDetails, $warrantyFilters] = $this->loadWarrantyClaims($request);
+        $assignableUsers = $this->loadAssignableUsers();
 
-        return view('ascm.warranty', compact('warrantyClaims', 'warrantyStats', 'warrantyDetails', 'warrantyFilters'))
+        return view('ascm.warranty', compact('warrantyClaims', 'warrantyStats', 'warrantyDetails', 'warrantyFilters', 'assignableUsers'))
             ->with('active', 'Warranty');
+    }
+
+    /**
+     * Now that roles exist, scope who can be assigned a case/claim to
+     * employees only -- an earlier draft of this used *all* users, back
+     * before roles existed to scope by.
+     */
+    private function loadAssignableUsers()
+    {
+        return User::where('role', User::ROLE_EMPLOYEE)->orderBy('name')->get(['id', 'name']);
     }
 
     /**
@@ -207,6 +220,7 @@ class AscmShellController extends Controller
             'warrantyRegistration.product',
             'warrantyRegistration.order',
             'case',
+            'assignee',
             'decisionBy',
             'notes' => fn ($q) => $q->latest(),
             'notes.author',

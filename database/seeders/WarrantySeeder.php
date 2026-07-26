@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\User;
+use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
 use App\Modules\ASCM\Models\WarrantyClaimDocument;
 use App\Modules\ASCM\Models\WarrantyClaimNote;
@@ -17,6 +18,13 @@ class WarrantySeeder extends Seeder
     /**
      * Same note as CaseManagementSeeder — these counts are illustrative,
      * not read from the UI's stat cards.
+     *
+     * Run this AFTER CaseManagementSeeder so the case_id lookup below has
+     * something to find: this mirrors the real integration path
+     * (CaseController::store creates a claim with case_id set when the
+     * category is "Warranty" and an eligible registration exists) instead
+     * of always leaving claims as case-less, which is what this seeder did
+     * before.
      */
     public function run(): void
     {
@@ -33,16 +41,35 @@ class WarrantySeeder extends Seeder
 
         foreach ($counts as $status => $count) {
             for ($i = 0; $i < $count; $i++) {
+                $customer = $customers->random();
+
                 $registration = WarrantyRegistration::factory()->create([
-                    'customer_id' => $customers->random()->customer_id,
+                    'customer_id' => $customer->customer_id,
                     'product_id' => $products->random()->id,
                 ]);
+
+                // If this customer already has a "Warranty" (or
+                // "Product Defect") category case with no claim on it yet,
+                // tie this claim back to it, same as the real
+                // CaseController::store flow does. Falls back to null
+                // (filed directly, no case) if nothing matches — that's a
+                // legitimate state too, not a gap to fill.
+                $relatedCase = SupportCase::where('customer_id', $customer->customer_id)
+                    ->whereIn('category', ['Warranty', 'Product Defect'])
+                    ->whereDoesntHave('warrantyClaims')
+                    ->inRandomOrder()
+                    ->first();
 
                 $claim = WarrantyClaim::factory()
                     ->status($status)
                     ->create([
                         'warranty_registration_id' => $registration->id,
                         'customer_id' => $registration->customer_id,
+                        'case_id' => $relatedCase?->id,
+                        // Start out matching the linked case's assignee, if
+                        // any — someone already working the case is the
+                        // natural first owner of a claim opened under it.
+                        'assigned_to' => $relatedCase?->assigned_to,
                         'decision_by' => in_array($status, ['approved', 'rejected']) && $staff->isNotEmpty()
                             ? $staff->random()->id
                             : null,
