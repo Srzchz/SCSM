@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\AccountController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
+require __DIR__.'/auth.php';
 require __DIR__.'/dashboard.php';
 require __DIR__.'/ascm.php';
 require __DIR__.'/mock-ecommerce.php';
@@ -16,7 +18,10 @@ require __DIR__.'/purchase-behavior.php';
 require __DIR__.'/sales-order-management.php';
 require __DIR__.'/sales-performance-reporting.php';
 
-Route::get('/account', fn () => view('coming-soon', ['pageTitle' => 'Account']))->name('account');
+Route::middleware('auth')->group(function () {
+    Route::get('/account', [AccountController::class, 'show'])->name('account');
+    Route::patch('/account', [AccountController::class, 'update'])->name('account.update');
+});
 Route::get('/after-sales-support', fn () => redirect()->route('ascm.index'))->name('after-sales-support');
 Route::get('/sales-order', fn () => redirect()->route('sales-order-management.index'))->name('sales-order');
 Route::get('/sales-report', fn () => redirect()->route('sales-performance-reporting.dashboard'))->name('sales-report');

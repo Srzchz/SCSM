@@ -4,6 +4,8 @@ namespace App\Modules\ASCM\Controllers;
 
 use App\Http\Controllers\Controller;
 
+use App\Models\User;
+use App\Modules\ASCM\Models\CaseNote;
 use App\Modules\ASCM\Models\WarrantyClaim;
 use App\Modules\ASCM\Models\WarrantyClaimNote;
 use App\Modules\ASCM\Models\WarrantyRepair;
@@ -47,6 +49,59 @@ class WarrantyController extends Controller
         ]);
 
         return $this->backToWarranty($request, "Claim {$claim->claim_number} updated to " . ucfirst(str_replace('_', ' ', $to)) . '.');
+    }
+
+    /**
+     * Reassigns who's currently working the claim. Mirrors
+     * CaseController::assign, and cascades the other direction: a claim
+     * belongs to at most one case (case_id is nullable, singular), so if
+     * this claim is linked to a case, that case's assigned_to is synced
+     * to match -- whoever's now handling the claim is treated as now
+     * handling the case it came from too.
+     */
+    public function assign(Request $request, WarrantyClaim $claim): RedirectResponse
+    {
+        $data = $request->validate([
+            'assigned_to' => 'nullable|integer|exists:users,id',
+        ]);
+
+        $from = $claim->assigned_to;
+        $to = $data['assigned_to'] ?? null;
+
+        if ($from == $to) {
+            return $this->backToWarranty($request, "Claim {$claim->claim_number} is already assigned as requested.");
+        }
+
+        $claim->assigned_to = $to;
+        $claim->save();
+
+        $toName = $to ? (User::find($to)?->name ?? 'someone') : null;
+
+        WarrantyClaimNote::create([
+            'warranty_claim_id' => $claim->id,
+            'author_id' => auth()->id(),
+            'note_type' => 'assignment',
+            'body' => $toName ? "Claim assigned to {$toName}." : 'Claim unassigned.',
+        ]);
+
+        if ($claim->case_id) {
+            $case = $claim->case;
+            $case->assigned_to = $to;
+            $case->save();
+
+            CaseNote::create([
+                'case_id' => $case->id,
+                'author_id' => auth()->id(),
+                'entry_type' => 'assignment',
+                'visibility' => 'internal',
+                'title' => 'Assignment updated',
+                'body' => $toName
+                    ? "Assignment synced from linked claim {$claim->claim_number}: assigned to {$toName}."
+                    : "Assignment synced from linked claim {$claim->claim_number}: unassigned.",
+            ]);
+        }
+
+        return $this->backToWarranty($request, $toName ? "Claim {$claim->claim_number} assigned to {$toName}." : "Claim {$claim->claim_number} unassigned.");
     }
 
     public function storeNote(Request $request, WarrantyClaim $claim): RedirectResponse

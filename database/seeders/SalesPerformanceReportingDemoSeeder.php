@@ -96,7 +96,7 @@ class SalesPerformanceReportingDemoSeeder extends Seeder
                     'name'          => $rep['name'],
                     'email'         => $email,
                     'password'      => Hash::make('password'),
-                    'role'          => 'rep',
+                    'role'          => 'employee',
                     'region_id'     => $regionIds[$rep['region']],
                     'avatar_initials' => collect(explode(' ', $rep['name']))->map(fn ($p) => $p[0])->join(''),
                     'employee_code' => 'REP-' . str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),

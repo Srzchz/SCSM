@@ -5,6 +5,7 @@ namespace App\Modules\CRM\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Modules\CRM\Models\CustomerInsight;
+use App\Support\CustomerInsightService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,7 @@ class CustomerController extends Controller
     {
         return view('customer-relationship-management.index', [
             'tableCustomers' => $this->allCustomersTable(),
+            'insights' => CustomerInsightService::segments(),
         ]);
     }
 
@@ -106,6 +108,7 @@ class CustomerController extends Controller
         return view('customer-relationship-management.overview', [
             'customer' => $this->buildCustomerArray($customer),
             'tableCustomers' => $this->allCustomersTable(),
+            'insights' => CustomerInsightService::segments(),
         ]);
     }
 
@@ -114,6 +117,7 @@ class CustomerController extends Controller
         return view('customer-relationship-management.order-history', [
             'customer' => $this->buildCustomerArray($customer),
             'tableCustomers' => $this->allCustomersTable(),
+            'insights' => CustomerInsightService::segments(),
         ]);
     }
 
@@ -122,6 +126,7 @@ class CustomerController extends Controller
         return view('customer-relationship-management.communication', [
             'customer' => $this->buildCustomerArray($customer),
             'tableCustomers' => $this->allCustomersTable(),
+            'insights' => CustomerInsightService::segments(),
         ]);
     }
 

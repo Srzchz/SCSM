@@ -77,6 +77,21 @@
                     <button type="submit" class="btn btn-primary">Save Decision</button>
                 </form>
 
+                <form class="detail-actions" id="panel-warranty-assign-form" method="POST" action="#">
+                    @csrf
+                    @method('PATCH')
+                    <div class="field-inline">
+                        <label class="filter-label" for="panel-warranty-assign">Assigned to</label>
+                        <select id="panel-warranty-assign" name="assigned_to" class="input">
+                            <option value="">Unassigned</option>
+                            @foreach ($assignableUsers as $user)
+                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                </form>
+
                 <div class="detail-columns">
                     <div class="mini-card">
                         <div class="mini-title">Coverage Summary</div>
@@ -207,6 +222,7 @@
                             <th>Customer</th>
                             <th>Coverage</th>
                             <th>Claim Status</th>
+                            <th>Assigned</th>
                             <th>Amount</th>
                             <th style="width:56px;text-align:right;">Actions</th>
                         </tr>
@@ -239,6 +255,7 @@
                                 </td>
                                 <td><span class="pill {{ $coveragePill[$coverageKey] ?? 'pill-gray' }}">{{ $registration ? ucfirst(str_replace('_', ' ', $registration->coverage_status)) : '—' }}</span></td>
                                 <td><span class="pill {{ $claimStatusPill[$claim->status] ?? 'pill-gray' }}">{{ ucfirst(str_replace('_', ' ', $claim->status)) }}</span></td>
+                                <td>{{ $claim->assignee->name ?? 'Unassigned' }}</td>
                                 <td>{{ $claim->approved_amount ? '$' . number_format((float) $claim->approved_amount, 2) : ($claim->estimated_amount ? '$' . number_format((float) $claim->estimated_amount, 2) : '—') }}</td>
                                 <td>
                                     <div class="action-menu">
@@ -252,6 +269,7 @@
                                                     data-claim-pk="{{ $claim->id }}"
                                                     data-claim-id="{{ $claim->claim_number }}"
                                                     data-claim-status="{{ $claim->status }}"
+                                                    data-claim-assigned="{{ $claim->assigned_to }}"
                                                     data-claim-meta="{{ $claimMeta }}"
                                                     data-claim-payload='{!! $claimPayload !!}'>View details</button>
 
@@ -261,6 +279,7 @@
                                                     data-claim-pk="{{ $claim->id }}"
                                                     data-claim-id="{{ $claim->claim_number }}"
                                                     data-claim-status="{{ $claim->status }}"
+                                                    data-claim-assigned="{{ $claim->assigned_to }}"
                                                     data-claim-meta="{{ $claimMeta }}"
                                                     data-claim-payload='{!! $claimPayload !!}'>Add note</button>
 
@@ -291,7 +310,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:28px;">
+                                <td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:28px;">
                                     No warranty claims yet — once your seeder runs, they'll show up here.
                                 </td>
                             </tr>
@@ -490,6 +509,8 @@
         const closeBtn = document.getElementById('warranty-detail-close');
         const decisionForm = document.getElementById('panel-warranty-decision-form');
         const decisionSelect = document.getElementById('panel-warranty-decision');
+        const assignForm = document.getElementById('panel-warranty-assign-form');
+        const assignSelect = document.getElementById('panel-warranty-assign');
         const noteForm = document.getElementById('panel-warranty-note-form');
         const noteTextarea = noteForm.querySelector('textarea[name="body"]');
         const noteCancelBtn = document.getElementById('panel-warranty-note-cancel');
@@ -549,6 +570,7 @@
             const id = btn.getAttribute('data-claim-id') || '—';
             const meta = btn.getAttribute('data-claim-meta') || '';
             const status = btn.getAttribute('data-claim-status') || 'submitted';
+            const assignedTo = btn.getAttribute('data-claim-assigned') || '';
 
             let payload = {};
             try { payload = JSON.parse(btn.getAttribute('data-claim-payload') || '{}'); } catch (e) { payload = {}; }
@@ -561,6 +583,8 @@
 
             if (decisionSelect) decisionSelect.value = status;
             if (decisionForm) decisionForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/decision' + (currentQuery ? ('?' + currentQuery) : '');
+            if (assignSelect) assignSelect.value = assignedTo;
+            if (assignForm) assignForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/assign' + (currentQuery ? ('?' + currentQuery) : '');
             if (noteForm) noteForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
             if (repairForm) repairForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/repair' + (currentQuery ? ('?' + currentQuery) : '');
 

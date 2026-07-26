@@ -4,6 +4,7 @@ namespace App\Modules\CommunicationLogs\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\CommunicationLogs\Models\CommunicationLog;
+use App\Support\CustomerInsightService;
 
 class CommunicationLogController extends Controller
 {
@@ -28,6 +29,8 @@ class CommunicationLogController extends Controller
                 'status' => $l->status,
             ]);
 
-        return view('communication-logs.index', compact('days', 'open', 'resolved', 'caseStats', 'logs'));
+        $insights = CustomerInsightService::segments();
+
+        return view('communication-logs.index', compact('days', 'open', 'resolved', 'caseStats', 'logs', 'insights'));
     }
 }

@@ -5,7 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Modules\ASCM\Models\SupportCase;
 use App\Modules\ASCM\Models\WarrantyClaim;
+use App\Modules\CRM\Models\CustomerInsight;
+use App\Support\CustomerInsightService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -27,8 +31,6 @@ class DashboardController extends Controller
 
         $sections = [
             'overview' => 'sections.overview',
-            'cases' => 'ascm.cases',
-            'warranty' => 'ascm.warranty',
             'sales-order' => 'sections.sales-order',
             'customer-relation' => 'sections.customer-relation',
             'sales-report' => 'sections.sales-report',
@@ -36,51 +38,21 @@ class DashboardController extends Controller
             'settings' => 'sections.settings',
         ];
 
-        [$cases, $caseStats, $caseDetails, $caseFilters] = $this->loadCases($request);
-        [$warrantyClaims, $warrantyStats, $warrantyDetails, $warrantyFilters] = $this->loadWarrantyClaims($request);
         [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues] = $this->loadOverview();
+        $insights = CustomerInsightService::segments();
 
         return view('spa', compact(
             'sections',
             'default',
-            'cases',
-            'caseStats',
-            'caseDetails',
-            'caseFilters',
-            'warrantyClaims',
-            'warrantyStats',
-            'warrantyDetails',
-            'warrantyFilters',
             'ovStats',
             'ovSegments',
             'ovCustomers',
             'ovGrowthLabels',
             'ovGrowthValues',
+            'insights',
         ));
     }
 
-    /**
-     * Real CRM Overview data, replacing the previously hardcoded arrays in
-     * sections/overview.blade.php.
-     *
-     * Definitions used (none of these existed in the codebase before —
-     * chosen deliberately, flag for review if the business wants something
-     * different):
-     *   - CLV = lifetime spend to date (sum of grand_total across a
-     *     customer's orders). Matches CustomerController's per-customer
-     *     total_spent, so this fixes those pages too (they were reading
-     *     the always-empty CustomerInsight.clv column).
-     *   - Retention Rate = % of all customers with 2+ orders.
-     *   - Customer Growth = new customers per calendar week, last 8 weeks,
-     *     grouped by Customer.created_at.
-     *   - "At Risk" segment removed — Customer::computeSegment() never
-     *     produced it; the old Overview view showed it as a fabricated
-     *     demo bucket only.
-     *   - Stat-card "% change" subtext: only computed for Total Customers
-     *     and Repeat Customers (30-day-vs-prior-30-day counts), since
-     *     those have an unambiguous definition. Left blank for CLV and
-     *     Retention Rate rather than inventing a comparison basis.
-     */
     private function loadOverview(): array
     {
         $customers = Customer::withCount('orders')
@@ -120,7 +92,7 @@ class DashboardController extends Controller
             'VIP' => '#AD9EFF',
             'Repeat Buyer' => '#9CFF9F',
             'New Customers' => '#7ED8FF',
-            'Inactive' => '#B0B4EC',
+            'Inactive' => 'rgb(255,154,145)',
         ];
         $segmentCounts = array_fill_keys(array_keys($segmentColors), 0);
 
@@ -173,7 +145,7 @@ class DashboardController extends Controller
         $ovStats = [
             ['label' => 'Total Customers', 'value' => number_format($totalCustomers), 'change' => $periodChange($customersLast30, $customersPrev30), 'tint' => 'tint-purple'],
             ['label' => 'Repeat Customers', 'value' => number_format($repeatCustomers->count()), 'change' => $periodChange($repeatLast30, $repeatPrev30), 'tint' => 'tint-green'],
-            ['label' => 'CLV (Avg)', 'value' => '₱' . number_format($avgClv, 2), 'change' => null, 'tint' => 'tint-blue'],
+            ['label' => 'CLV (Avg)', 'value' => '₱' . ($avgClv >= 1000 ? number_format($avgClv / 1000, 1) . 'K' : number_format($avgClv, 2)), 'change' => null, 'tint' => 'tint-blue'],
             ['label' => 'Retention Rate', 'value' => $retentionRate . '%', 'change' => null, 'tint' => 'tint-coral'],
         ];
 

@@ -115,4 +115,9 @@ class SupportCase extends Model
     {
         return $this->hasMany(\App\Modules\CommunicationLogs\Models\CommunicationLog::class, 'ticket_id', 'case_number');
     }
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\SupportCaseFactory::new();
+    }
 }
