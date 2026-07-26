@@ -39,11 +39,11 @@
                 <label class="field-label">Report Type</label>
                 <div class="select" id="selReportType">
                     <button type="button" class="select-btn" onclick="toggleSelect(this)">
-                        <span class="select-value">Sales by Rep</span>
+                        <span class="select-value">Select...</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </button>
                     <div class="select-menu">
-                        <div class="select-option selected" data-value="rep">Sales by Rep</div>
+                        <div class="select-option" data-value="rep">Sales by Rep</div>
                         <div class="select-option" data-value="product">Sales by Product</div>
                         <div class="select-option" data-value="region">Sales by Region</div>
                     </div>
@@ -54,11 +54,11 @@
                 <label class="field-label">Data Range</label>
                 <div class="select" id="selDataRange">
                     <button type="button" class="select-btn" onclick="toggleSelect(this)">
-                        <span class="select-value">Jan - Jun</span>
+                        <span class="select-value">Select...</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </button>
                     <div class="select-menu">
-                        <div class="select-option selected" data-value="jan-jun">Jan - Jun</div>
+                        <div class="select-option" data-value="jan-jun">Jan - Jun</div>
                         <div class="select-option" data-value="jul-dec">Jul - Dec</div>
                         <div class="select-option" data-value="q1">Q1 Only</div>
                         <div class="select-option" data-value="q2">Q2 Only</div>
@@ -71,11 +71,11 @@
                 <label class="field-label">Compare Against</label>
                 <div class="select" id="selCompare">
                     <button type="button" class="select-btn" onclick="toggleSelect(this)">
-                        <span class="select-value">Forecast</span>
+                        <span class="select-value">Select...</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </button>
                     <div class="select-menu">
-                        <div class="select-option selected" data-value="forecast">Forecast</div>
+                        <div class="select-option" data-value="forecast">Forecast</div>
                         <div class="select-option" data-value="last-quarter">Last Quarter</div>
                         <div class="select-option" data-value="last-year">Last Year</div>
                     </div>
@@ -86,11 +86,11 @@
                 <label class="field-label">Region Filter</label>
                 <div class="select" id="selRegion">
                     <button type="button" class="select-btn" onclick="toggleSelect(this)">
-                        <span class="select-value">ALL</span>
+                        <span class="select-value">Select...</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </button>
                     <div class="select-menu">
-                        <div class="select-option selected" data-value="all">ALL</div>
+                        <div class="select-option" data-value="all">ALL</div>
                         @foreach ($regions as $region)
                             <div class="select-option" data-value="{{ strtolower($region->name) }}">{{ $region->name }}</div>
                         @endforeach
@@ -102,11 +102,11 @@
                 <label class="field-label">Product Filter</label>
                 <div class="select" id="selProduct">
                     <button type="button" class="select-btn" onclick="toggleSelect(this)">
-                        <span class="select-value">ALL</span>
+                        <span class="select-value">Select...</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </button>
                     <div class="select-menu">
-                        <div class="select-option selected" data-value="all">ALL</div>
+                        <div class="select-option" data-value="all">ALL</div>
                         @foreach ($products as $product)
                             <div class="select-option" data-value="{{ \Illuminate\Support\Str::slug($product->name) }}">{{ $product->name }}</div>
                         @endforeach
@@ -118,11 +118,11 @@
                 <label class="field-label">Rep Filter</label>
                 <div class="select" id="selRep">
                     <button type="button" class="select-btn" onclick="toggleSelect(this)">
-                        <span class="select-value">ALL</span>
+                        <span class="select-value">Select...</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </button>
                     <div class="select-menu">
-                        <div class="select-option selected" data-value="all">ALL</div>
+                        <div class="select-option" data-value="all">ALL</div>
                         @foreach ($reps as $rep)
                             <div class="select-option" data-value="{{ strtolower($rep->name) }}">{{ $rep->name }}</div>
                         @endforeach
@@ -137,7 +137,7 @@
         </div>
     </section>
 
-    <section class="card table-panel" id="reportResults">
+    <section class="card table-panel" id="reportResults" style="display:none;">
         <div class="table-panel-head">
             <span style="width:90px;"></span>
             <h2 id="reportTitle">Sales by Representative</h2>
@@ -158,7 +158,7 @@
         </table>
     </section>
 
-    <p id="reportEmptyState" class="card panel" style="display:none; text-align:center; color:var(--muted); font-weight:600;">
+    <p id="reportEmptyState" class="card panel" style="text-align:center; color:var(--muted); font-weight:600;">
         Filters cleared. Choose your filters above and click <strong style="color:var(--ink); margin:0 4px;">Generate Report</strong> to see results.
     </p>
 </div>
@@ -281,6 +281,9 @@
         initSelect(document.getElementById(id));
     });
 
-    generateReport();
+    // Page now loads with every dropdown blank ("Select...") and the results
+    // table hidden, instead of auto-generating the Sales by Rep report.
+    // The user must pick a Report Type and click Generate Report themselves.
+    clearFilters();
 </script>
 @endpush
