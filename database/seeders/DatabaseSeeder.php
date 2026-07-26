@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ProductSeeder::class,
             CustomerSeeder::class,
+            CrmDemoDataSeeder::class,
             OrderSeeder::class,
             HistoricalSalesOrderSeeder::class,
             PricingRuleSeeder::class,
