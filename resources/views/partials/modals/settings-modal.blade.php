@@ -55,8 +55,11 @@
                 <span class="text-curema-sub">›</span>
             </button>
 
+            <form method="POST" action="{{ route('logout') }}" id="logout-form">
+                @csrf
+            </form>
             <button type="button"
-                    @click="if (confirm('Log out?')) { ui.settingsOpen = false; window.location.href = '{{ route('dashboard') }}?loggedOut=1'; }"
+                    @click="if (confirm('Log out?')) { document.getElementById('logout-form').submit(); }"
                     class="w-full flex items-center gap-3 py-3 border-t border-curema-border text-sm font-medium text-red-500">
                 ↪ Log Out
             </button>
