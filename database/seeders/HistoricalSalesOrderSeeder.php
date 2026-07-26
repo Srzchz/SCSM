@@ -25,6 +25,13 @@ class HistoricalSalesOrderSeeder extends Seeder
         'shipped'    => 'Shipped',
         'delivered'  => 'Delivered',
         'cancelled'  => 'Cancelled',
+        // MockEcommerceSeeder's demo order uses 'completed', which isn't
+        // one of the 5 values SalesOrderController's status flow
+        // recognizes. Treat a fulfilled e-commerce order as 'Delivered' —
+        // the closest real equivalent — instead of falling through to the
+        // raw unmapped string, which truncates against the enum column
+        // and throws.
+        'completed'  => 'Delivered',
     ];
 
     public function run(): void
