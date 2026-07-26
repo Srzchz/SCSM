@@ -36,12 +36,12 @@
                 <div class="bg-curema-card rounded-2xl border border-curema-border p-5 h-[260px] flex flex-col">
                     <h2 class="font-semibold mb-4">Total Cases this Week</h2>
                     <div class="grid grid-cols-2 gap-3 text-center">
-                        <div class="bg-curema-bluesoft rounded-xl py-4">
-                            <p class="text-xl font-extrabold text-curema-blue">{{ $caseStats['open'] }}</p>
+                        <div class="bg-curema-purplesoft rounded-xl py-4">
+                            <p class="text-xl font-extrabold text-curema-purple">{{ $caseStats['open'] }}</p>
                             <p class="text-[11px] text-curema-sub mt-1">Open</p>
                         </div>
-                        <div class="bg-curema-greensoft rounded-xl py-4">
-                            <p class="text-xl font-extrabold text-curema-green">{{ $caseStats['resolved'] }}</p>
+                        <div class="bg-curema-purple/10 rounded-xl py-4">
+                            <p class="text-xl font-extrabold text-curema-purple">{{ $caseStats['resolved'] }}</p>
                             <p class="text-[11px] text-curema-sub mt-1">Resolved</p>
                         </div>
                     </div>
