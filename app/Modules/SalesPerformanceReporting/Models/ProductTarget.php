@@ -9,15 +9,20 @@ class ProductTarget extends Model
 {
     use HasAttainment;
 
-    public $timestamps = false;
-
-    // Renamed per the SCSM monorepo migration: table is now module-prefixed.
     protected $table = 'sales_performance_reporting_product_targets';
+
+    public $timestamps = false;
 
     protected $fillable = ['product_id', 'period', 'target_amount', 'actual_amount'];
 
+    /**
+     * NOTE: assumed to be App\Models\Product, since the products table is
+     * shared with Sales Order Management. If your product model lives
+     * somewhere else (e.g. a module-specific namespace), update the
+     * class reference below to match.
+     */
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(\App\Models\Product::class, 'product_id');
     }
 }

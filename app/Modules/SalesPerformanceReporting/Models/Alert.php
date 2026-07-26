@@ -3,17 +3,18 @@
 namespace App\Modules\SalesPerformanceReporting\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class Alert extends Model
 {
-    public $timestamps = false;
-
-    // Renamed per the SCSM monorepo migration: table is now module-prefixed.
     protected $table = 'sales_performance_reporting_alerts';
 
+    public $timestamps = false;
+
     protected $fillable = [
-        'category', 'title', 'description', 'link_label', 'link_url',
-        'related_type', 'related_id', 'is_read',
+        'dedupe_key', 'category', 'title', 'description',
+        'link_label', 'link_url', 'related_type', 'related_id',
+        'is_read', 'created_at',
     ];
 
     protected $casts = [
@@ -23,11 +24,16 @@ class Alert extends Model
 
     public function timeAgo(): string
     {
-        return $this->created_at->diffForHumans();
+        return Carbon::parse($this->created_at)->diffForHumans();
     }
 
-    public function scopeCategory($query, string $category)
+    public function icon(): string
     {
-        return $category === 'all' ? $query : $query->where('category', $category);
+        return match ($this->category) {
+            'critical' => '⚠️',
+            'warning'  => '❗',
+            'positive' => '📈',
+            default    => 'ℹ️',
+        };
     }
 }
