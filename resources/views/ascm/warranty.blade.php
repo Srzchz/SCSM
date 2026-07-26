@@ -94,6 +94,27 @@
                     </form>
                 @endif
 
+                <form class="detail-actions" id="panel-warranty-estimate-form" method="POST" action="#">
+                    @csrf
+                    @method('PATCH')
+                    <div class="field-inline">
+                        <label class="filter-label" for="panel-warranty-estimate-tier">Estimate</label>
+                        <select id="panel-warranty-estimate-tier" name="tier" class="input">
+                            <option value="minor">Minor repair — 15% of original price</option>
+                            <option value="moderate">Moderate repair — 35%</option>
+                            <option value="major">Major repair — 60%</option>
+                            <option value="replacement">Full replacement — 100%</option>
+                            <option value="custom">Custom amount</option>
+                        </select>
+                    </div>
+                    <div class="field-inline" id="panel-warranty-estimate-custom-wrap" style="display:none">
+                        <label class="filter-label" for="panel-warranty-estimate-custom">Custom amount (₱)</label>
+                        <input type="number" min="0" step="0.01" id="panel-warranty-estimate-custom" name="custom_amount" class="input">
+                    </div>
+                    <p class="mini-key" id="panel-warranty-estimate-preview"></p>
+                    <button type="submit" class="btn btn-primary">Set Estimate</button>
+                </form>
+
                 <div class="detail-columns">
                     <div class="mini-card">
                         <div class="mini-title">Coverage Summary</div>
@@ -313,7 +334,11 @@
                         @empty
                             <tr>
                                 <td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:28px;">
-                                    No warranty claims yet — once your seeder runs, they'll show up here.
+                                    @if (auth()->user()?->isEmployee())
+                                        No warranty claims assigned to you yet.
+                                    @else
+                                        No warranty claims yet — once your seeder runs, they'll show up here.
+                                    @endif
                                 </td>
                             </tr>
                         @endforelse
@@ -513,11 +538,45 @@
         const decisionSelect = document.getElementById('panel-warranty-decision');
         const assignForm = document.getElementById('panel-warranty-assign-form');
         const assignSelect = document.getElementById('panel-warranty-assign');
+        const estimateForm = document.getElementById('panel-warranty-estimate-form');
+        const estimateTierSelect = document.getElementById('panel-warranty-estimate-tier');
+        const estimateCustomWrap = document.getElementById('panel-warranty-estimate-custom-wrap');
+        const estimateCustomInput = document.getElementById('panel-warranty-estimate-custom');
+        const estimatePreview = document.getElementById('panel-warranty-estimate-preview');
         const noteForm = document.getElementById('panel-warranty-note-form');
         const noteTextarea = noteForm.querySelector('textarea[name="body"]');
         const noteCancelBtn = document.getElementById('panel-warranty-note-cancel');
         const repairForm = document.getElementById('panel-warranty-repair-form');
         const currentQuery = {!! json_encode($currentWarrantyQueryString, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_TAG) !!};
+        let currentOriginalPrice = null;
+
+        const ESTIMATE_TIER_PERCENTS = { minor: 0.15, moderate: 0.35, major: 0.60, replacement: 1.00 };
+
+        function updateEstimatePreview() {
+            if (!estimateTierSelect) return;
+            const tier = estimateTierSelect.value;
+            const isCustom = tier === 'custom';
+
+            if (estimateCustomWrap) estimateCustomWrap.style.display = isCustom ? '' : 'none';
+
+            if (isCustom) {
+                if (estimatePreview) estimatePreview.textContent = '';
+                return;
+            }
+
+            if (currentOriginalPrice === null) {
+                if (estimatePreview) estimatePreview.textContent = 'No order price on file — use a custom amount instead.';
+                return;
+            }
+
+            const amount = currentOriginalPrice * ESTIMATE_TIER_PERCENTS[tier];
+            if (estimatePreview) {
+                estimatePreview.textContent = (ESTIMATE_TIER_PERCENTS[tier] * 100) + '% of ₱' +
+                    currentOriginalPrice.toFixed(2) + ' = ₱' + amount.toFixed(2);
+            }
+        }
+
+        if (estimateTierSelect) estimateTierSelect.addEventListener('change', updateEstimatePreview);
 
         function escapeHtml(str) {
             const div = document.createElement('div');
@@ -587,6 +646,11 @@
             if (decisionForm) decisionForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/decision' + (currentQuery ? ('?' + currentQuery) : '');
             if (assignSelect) assignSelect.value = assignedTo;
             if (assignForm) assignForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/assign' + (currentQuery ? ('?' + currentQuery) : '');
+            if (estimateForm) estimateForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/estimate' + (currentQuery ? ('?' + currentQuery) : '');
+            currentOriginalPrice = (typeof payload.original_price === 'number') ? payload.original_price : null;
+            if (estimateTierSelect) estimateTierSelect.value = 'minor';
+            if (estimateCustomInput) estimateCustomInput.value = '';
+            updateEstimatePreview();
             if (noteForm) noteForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/notes' + (currentQuery ? ('?' + currentQuery) : '');
             if (repairForm) repairForm.action = '{{ url('/ascm/warranty') }}/' + pk + '/repair' + (currentQuery ? ('?' + currentQuery) : '');
 

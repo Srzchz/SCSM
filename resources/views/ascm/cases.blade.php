@@ -295,7 +295,11 @@
                         @empty
                             <tr>
                                 <td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:28px;">
-                                    No cases yet — once your seeder runs, they'll show up here.
+                                    @if (auth()->user()?->isEmployee())
+                                        No cases assigned to you yet.
+                                    @else
+                                        No cases yet — once your seeder runs, they'll show up here.
+                                    @endif
                                 </td>
                             </tr>
                         @endforelse

@@ -21,13 +21,11 @@ class AccountController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:150',
-            'department' => 'nullable|string|max:80',
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
         $user->fill([
             'name' => $data['name'],
-            'department' => $data['department'] ?? null,
         ]);
 
         if (! empty($data['password'])) {

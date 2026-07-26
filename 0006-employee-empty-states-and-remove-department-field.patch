@@ -1,0 +1,108 @@
+diff --git a/app/Http/Controllers/AccountController.php b/app/Http/Controllers/AccountController.php
+index cfcd74d..8b70b5c 100644
+--- a/app/Http/Controllers/AccountController.php
++++ b/app/Http/Controllers/AccountController.php
+@@ -21,13 +21,11 @@ public function update(Request $request): RedirectResponse
+ 
+         $data = $request->validate([
+             'name' => 'required|string|max:150',
+-            'department' => 'nullable|string|max:80',
+             'password' => 'nullable|string|min:8|confirmed',
+         ]);
+ 
+         $user->fill([
+             'name' => $data['name'],
+-            'department' => $data['department'] ?? null,
+         ]);
+ 
+         if (! empty($data['password'])) {
+diff --git a/app/Http/Controllers/AuthController.php b/app/Http/Controllers/AuthController.php
+index c44b6e1..56b1c8b 100644
+--- a/app/Http/Controllers/AuthController.php
++++ b/app/Http/Controllers/AuthController.php
+@@ -47,7 +47,6 @@ public function register(Request $request): RedirectResponse
+             'email' => 'required|email|max:150|unique:users,email',
+             'password' => 'required|string|min:8|confirmed',
+             'role' => ['required', Rule::in([User::ROLE_MANAGER, User::ROLE_EMPLOYEE])],
+-            'department' => 'nullable|string|max:80',
+         ]);
+ 
+         $user = User::create([
+@@ -55,7 +54,6 @@ public function register(Request $request): RedirectResponse
+             'email' => $data['email'],
+             'password' => Hash::make($data['password']),
+             'role' => $data['role'],
+-            'department' => $data['department'] ?? null,
+             'avatar_initials' => collect(explode(' ', $data['name']))
+                 ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+                 ->join(''),
+diff --git a/resources/views/account/show.blade.php b/resources/views/account/show.blade.php
+index d6a1300..b8243d0 100644
+--- a/resources/views/account/show.blade.php
++++ b/resources/views/account/show.blade.php
+@@ -59,13 +59,6 @@ class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border te
+                                   focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
+                 </div>
+ 
+-                <div>
+-                    <label for="department" class="block text-xs font-medium text-curema-sub mb-1.5">Department</label>
+-                    <input type="text" name="department" id="department" value="{{ old('department', $user->department) }}"
+-                           class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
+-                                  focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
+-                </div>
+-
+                 <div class="grid grid-cols-2 gap-4">
+                     <div>
+                         <label for="password" class="block text-xs font-medium text-curema-sub mb-1.5">New password <span class="text-curema-sub/70">(optional)</span></label>
+diff --git a/resources/views/ascm/cases.blade.php b/resources/views/ascm/cases.blade.php
+index ce2c834..8108089 100644
+--- a/resources/views/ascm/cases.blade.php
++++ b/resources/views/ascm/cases.blade.php
+@@ -295,7 +295,11 @@
+                         @empty
+                             <tr>
+                                 <td colspan="8" style="text-align:center;color:var(--color-text-muted);padding:28px;">
+-                                    No cases yet — once your seeder runs, they'll show up here.
++                                    @if (auth()->user()?->isEmployee())
++                                        No cases assigned to you yet.
++                                    @else
++                                        No cases yet — once your seeder runs, they'll show up here.
++                                    @endif
+                                 </td>
+                             </tr>
+                         @endforelse
+diff --git a/resources/views/ascm/warranty.blade.php b/resources/views/ascm/warranty.blade.php
+index f7e77ef..23b50f2 100644
+--- a/resources/views/ascm/warranty.blade.php
++++ b/resources/views/ascm/warranty.blade.php
+@@ -334,7 +334,11 @@
+                         @empty
+                             <tr>
+                                 <td colspan="7" style="text-align:center;color:var(--color-text-muted);padding:28px;">
+-                                    No warranty claims yet — once your seeder runs, they'll show up here.
++                                    @if (auth()->user()?->isEmployee())
++                                        No warranty claims assigned to you yet.
++                                    @else
++                                        No warranty claims yet — once your seeder runs, they'll show up here.
++                                    @endif
+                                 </td>
+                             </tr>
+                         @endforelse
+diff --git a/resources/views/auth/register.blade.php b/resources/views/auth/register.blade.php
+index be89900..cde9b60 100644
+--- a/resources/views/auth/register.blade.php
++++ b/resources/views/auth/register.blade.php
+@@ -38,13 +38,6 @@ class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border te
+             </div>
+         </div>
+ 
+-        <div>
+-            <label for="department" class="block text-xs font-medium text-curema-sub mb-1.5">Department <span class="text-curema-sub/70">(optional)</span></label>
+-            <input type="text" name="department" id="department" value="{{ old('department') }}" placeholder="e.g. Sales, Support"
+-                   class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
+-                          focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
+-        </div>
+-
+         <div>
+             <label for="password" class="block text-xs font-medium text-curema-sub mb-1.5">Password</label>
+             <input type="password" name="password" id="password" required

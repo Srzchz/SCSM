@@ -35,7 +35,6 @@ class CaseController extends Controller
             'category' => 'required|string|max:100',
             'priority' => 'nullable|in:low,medium,high,critical',
             'issue_description' => 'required|string|max:2000',
-            'estimated_amount' => 'nullable|numeric|min:0',
             'source_module' => 'nullable|string|max:50',
         ]);
 
@@ -88,7 +87,6 @@ class CaseController extends Controller
                     'customer_id' => $order['customer_id'],
                     'case_id' => $case->id,
                     'issue_description' => $data['issue_description'],
-                    'estimated_amount' => $data['estimated_amount'] ?? null,
                     'status' => 'submitted',
                 ]);
             }

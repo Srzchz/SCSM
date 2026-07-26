@@ -59,13 +59,6 @@
                                   focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
                 </div>
 
-                <div>
-                    <label for="department" class="block text-xs font-medium text-curema-sub mb-1.5">Department</label>
-                    <input type="text" name="department" id="department" value="{{ old('department', $user->department) }}"
-                           class="w-full px-4 py-2.5 rounded-xl bg-curema-bg border border-curema-border text-sm
-                                  focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
-                </div>
-
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="password" class="block text-xs font-medium text-curema-sub mb-1.5">New password <span class="text-curema-sub/70">(optional)</span></label>

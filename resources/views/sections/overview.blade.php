@@ -12,11 +12,11 @@
     Stat cards, segment donut, growth chart, and Top Customers come from
     DashboardController::loadOverview() (real DB data). Customer Insight
     now comes from the shared CustomerInsightService, via the same
-    partials.customer-insight / upcoming-followups / recent-activities
-    partials used on the Customer Relation page — one implementation for
-    both pages instead of two, so they can't drift out of sync. Follow-ups
-    and Activities still fall back to static demo content within those
-    partials (no backing model exists for those yet).
+    partials.customer-insight / upcoming-followups partials used on the
+    Customer Relation page — one implementation for both pages instead of
+    two, so they can't drift out of sync. Follow-ups still falls back to
+    static demo content within that partial (no backing model exists for
+    it yet).
 --}}
 
 <div class="overview-wrapper">

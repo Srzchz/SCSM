@@ -18,6 +18,13 @@ class DatabaseSeeder extends Seeder
      *   exist -- it only firstOrCreate()s its own standalone demo
      *   customer/order for the mock e-commerce trigger form, so it doesn't
      *   depend on or feed into the seeders around it.
+     * - WarrantyRegistrationBackfillSeeder after every order-creating
+     *   seeder (including MockEcommerceSeeder's own demo order), before
+     *   CaseManagementSeeder/WarrantySeeder -- it registers coverage for
+     *   every order item that doesn't already have one, so that filing a
+     *   "Warranty" case against ANY seeded order (not just one placed
+     *   live through the mock checkout) actually has something eligible
+     *   to match against.
      * - CaseManagementSeeder before WarrantySeeder -- WarrantySeeder links
      *   claims back to existing cases for the same customer where one
      *   fits (mirrors what CaseController::store does for real requests),
@@ -43,6 +50,7 @@ class DatabaseSeeder extends Seeder
             SalesOrderSeeder::class,
             StaffUserSeeder::class,
             MockEcommerceSeeder::class,
+            WarrantyRegistrationBackfillSeeder::class,
             CaseManagementSeeder::class,
             WarrantySeeder::class,
         ]);

@@ -41,16 +41,12 @@
             @endforelse
         </select>
         <label>Category</label>
-        <select name="category" id="category" onchange="document.getElementById('amount-field').style.display = this.value === 'Warranty' ? 'block' : 'none'">
+        <select name="category" id="category">
             <option>Technical</option>
             <option>Returns</option>
             <option>Warranty</option>
             <option>Support</option>
         </select>
-        <div id="amount-field" style="display:none">
-            <label>Estimated repair/replacement cost (₱)</label>
-            <input type="number" name="estimated_amount" id="estimated_amount" min="0" step="0.01" placeholder="0.00">
-        </div>
         <label>Priority</label>
         <select name="priority" id="priority">
             <option value="">Default (medium)</option>
@@ -119,7 +115,6 @@
                         category: document.getElementById('category').value,
                         priority: document.getElementById('priority').value || null,
                         issue_description: document.getElementById('issue_description').value,
-                        estimated_amount: document.getElementById('estimated_amount').value || null,
                     }),
                 });
 

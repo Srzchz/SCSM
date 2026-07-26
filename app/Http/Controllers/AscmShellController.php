@@ -236,6 +236,7 @@ class AscmShellController extends Controller
             'customer',
             'warrantyRegistration.product',
             'warrantyRegistration.order',
+            'warrantyRegistration.orderItem',
             'case',
             'assignee',
             'decisionBy',
@@ -266,6 +267,7 @@ class AscmShellController extends Controller
                     'requested_action' => $claim->requested_action ?: '—',
                     'estimated_amount' => $claim->estimated_amount ? '$' . number_format((float) $claim->estimated_amount, 2) : '—',
                 ],
+                'original_price' => $claim->originalPrice(),
                 'notes' => $claim->notes->map(fn ($note) => [
                     'title' => ucfirst(str_replace('_', ' ', $note->note_type ?: 'note')),
                     'meta' => $note->created_at->diffForHumans() . ($note->author ? ' • ' . $note->author->name : ''),

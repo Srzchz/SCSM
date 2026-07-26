@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CustomerMockController extends Controller
 {
@@ -109,13 +110,25 @@ class CustomerMockController extends Controller
                 'unit_price' => $item['price'],
             ]);
 
-            Http::post(url('/api/ascm/warranty-registrations'), [
+            $registrationResponse = Http::post(url('/api/ascm/warranty-registrations'), [
                 'customer_id' => $customer->customer_id,
                 'order_id' => $localOrder->order_id,
                 'order_item_id' => $orderItem->id,
                 'product_id' => $item['productId'],
                 'coverage_months' => 12,
             ]);
+
+            if ($registrationResponse->failed()) {
+                // This used to fail completely silently — the response
+                // was never checked at all, so a broken registration call
+                // would look identical to a successful one from here.
+                Log::warning('Warranty registration failed for order item.', [
+                    'order_id' => $localOrder->order_id,
+                    'order_item_id' => $orderItem->id,
+                    'status' => $registrationResponse->status(),
+                    'body' => $registrationResponse->body(),
+                ]);
+            }
         }
 
         return response()->json([

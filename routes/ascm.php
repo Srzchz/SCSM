@@ -25,6 +25,7 @@ Route::prefix('ascm')->name('ascm.')->group(function () {
     Route::prefix('warranty')->name('warranty.')->group(function () {
         Route::patch('{claim}/decision', [WarrantyController::class, 'updateDecision'])->name('decision');
         Route::patch('{claim}/assign', [WarrantyController::class, 'assign'])->name('assign');
+        Route::patch('{claim}/estimate', [WarrantyController::class, 'updateEstimate'])->name('estimate');
         Route::post('{claim}/notes', [WarrantyController::class, 'storeNote'])->name('notes.store');
         Route::post('{claim}/repair', [WarrantyController::class, 'storeRepair'])->name('repair.store');
     });

@@ -104,6 +104,61 @@ class WarrantyController extends Controller
         return $this->backToWarranty($request, $toName ? "Claim {$claim->claim_number} assigned to {$toName}." : "Claim {$claim->claim_number} unassigned.");
     }
 
+    /**
+     * Sets estimated_amount from a standard repair-severity tier (a
+     * percentage of what this claim's product actually sold for) or a
+     * manual custom figure. This is deliberately staff-only surface —
+     * there's no equivalent input anywhere in the customer-facing mock
+     * e-commerce help desk. The percentage is computed server-side from
+     * the tier key, never trusted from the client, so a request can't
+     * just submit an arbitrary "calculated" amount under a tier label.
+     */
+    private const ESTIMATE_TIERS = [
+        'minor' => 0.15,
+        'moderate' => 0.35,
+        'major' => 0.60,
+        'replacement' => 1.00,
+    ];
+
+    public function updateEstimate(Request $request, WarrantyClaim $claim): RedirectResponse
+    {
+        $data = $request->validate([
+            'tier' => 'required|in:minor,moderate,major,replacement,custom',
+            'custom_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        $tier = $data['tier'];
+
+        if ($tier === 'custom') {
+            if (! isset($data['custom_amount'])) {
+                return $this->backToWarranty($request, 'Enter a custom amount, or pick a tier instead.');
+            }
+            $amount = round((float) $data['custom_amount'], 2);
+            $label = 'Custom amount';
+        } else {
+            $basePrice = $claim->originalPrice();
+
+            if ($basePrice === null) {
+                return $this->backToWarranty($request, "Can't compute a tier estimate — no order price on file for {$claim->claim_number}. Use a custom amount instead.");
+            }
+
+            $percent = self::ESTIMATE_TIERS[$tier];
+            $amount = round($basePrice * $percent, 2);
+            $label = ucfirst($tier) . ' (' . ($percent * 100) . '% of ₱' . number_format($basePrice, 2) . ')';
+        }
+
+        $claim->update(['estimated_amount' => $amount]);
+
+        WarrantyClaimNote::create([
+            'warranty_claim_id' => $claim->id,
+            'author_id' => auth()->id(),
+            'note_type' => 'estimate',
+            'body' => "Estimate set to ₱" . number_format($amount, 2) . " — {$label}.",
+        ]);
+
+        return $this->backToWarranty($request, "Estimate set for {$claim->claim_number}: ₱" . number_format($amount, 2) . '.');
+    }
+
     public function storeNote(Request $request, WarrantyClaim $claim): RedirectResponse
     {
         $data = $request->validate([

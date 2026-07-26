@@ -47,7 +47,6 @@ class AuthController extends Controller
             'email' => 'required|email|max:150|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'role' => ['required', Rule::in([User::ROLE_MANAGER, User::ROLE_EMPLOYEE])],
-            'department' => 'nullable|string|max:80',
         ]);
 
         $user = User::create([
@@ -55,7 +54,6 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => $data['role'],
-            'department' => $data['department'] ?? null,
             'avatar_initials' => collect(explode(' ', $data['name']))
                 ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
                 ->join(''),

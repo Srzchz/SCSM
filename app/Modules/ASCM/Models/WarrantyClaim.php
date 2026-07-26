@@ -92,6 +92,32 @@ class WarrantyClaim extends Model
         return $this->hasMany(WarrantyRepair::class);
     }
 
+    /**
+     * What this claim's product actually sold for, as the base for a
+     * percentage-of-price estimate. Prefers the specific order item's
+     * unit_price (most accurate — the exact unit this claim is against);
+     * falls back to the order's grand_total if the item link is missing,
+     * since some historical/seeded orders may not have one. Null if
+     * there's no order data to go on at all, e.g. a claim with no linked
+     * registration.
+     */
+    public function originalPrice(): ?float
+    {
+        $registration = $this->warrantyRegistration;
+
+        if (! $registration) {
+            return null;
+        }
+
+        if ($registration->orderItem?->unit_price !== null) {
+            return (float) $registration->orderItem->unit_price;
+        }
+
+        return $registration->order?->grand_total !== null
+            ? (float) $registration->order->grand_total
+            : null;
+    }
+
     protected static function newFactory()
     {
         return \Database\Factories\WarrantyClaimFactory::new();
