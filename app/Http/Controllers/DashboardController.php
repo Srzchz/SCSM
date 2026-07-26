@@ -22,9 +22,14 @@ class DashboardController extends Controller
      * passed down together, rather than one controller per page.
      *
      * Cases, Warranty, and now Overview are wired to real data. Sales
-     * Order, Customer Relation, Sales Report, Account, and Settings still
-     * render their static placeholder/demo content until the same pattern
-     * used here is repeated for them.
+     * Order, Customer Relation, and Sales Report still render their
+     * static placeholder/demo content until the same pattern used here
+     * is repeated for them.
+     *
+     * Account and Settings were removed from here: both are fully
+     * superseded by the real /account page and the real settings modal
+     * (see layouts/app.blade.php), and nothing links to
+     * ?section=account or ?section=settings anymore.
      */
     public function index(Request $request)
     {
@@ -35,8 +40,6 @@ class DashboardController extends Controller
             'sales-order' => 'sections.sales-order',
             'customer-relation' => 'sections.customer-relation',
             'sales-report' => 'sections.sales-report',
-            'account' => 'sections.account',
-            'settings' => 'sections.settings',
         ];
 
         [$ovStats, $ovSegments, $ovCustomers, $ovGrowthLabels, $ovGrowthValues] = $this->loadOverview();
