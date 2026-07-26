@@ -17,7 +17,7 @@
                     <h2 class="font-semibold mb-4">Purchase Behavior</h2>
                     <ul class="space-y-5">
                         @php
-                            $metricIcons = ['👕', '🛍️', '⏱️', '↩️'];
+                            $metricIcons = ['🏷️', '🛍️', '⏱️', '↩️'];
                         @endphp
                         @foreach ($metrics as $i => $m)
                             <li class="flex items-start gap-3">

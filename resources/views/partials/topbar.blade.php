@@ -11,16 +11,69 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-3">
-        <div class="relative hidden md:block flex-shrink min-w-0">
-            <input type="text" id="global-search" placeholder="Search customers, emails, orders, ..."
+        <form method="GET" action="{{ route('customers.index') }}" class="relative hidden md:block flex-shrink min-w-0">
+            <input type="text" name="q" value="{{ request('q') }}" placeholder="Search customers, emails, orders, ..."
                    class="w-full md:w-56 lg:w-72 max-w-full pl-4 pr-10 py-2.5 rounded-xl bg-white border border-curema-border text-sm
                           focus:outline-none focus:ring-2 focus:ring-curema-purple/40">
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-curema-sub">🔍</span>
+            <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-curema-sub" aria-label="Search">🔍</button>
+        </form>
+
+        <div class="relative" x-data="{
+                open: false,
+                items: @js(\App\Support\NotificationService::recent()),
+                get unread() { return this.items.filter(n => !n.read).length; },
+                markRead(id) {
+                    const item = this.items.find(n => n.id === id);
+                    if (item) item.read = true;
+                },
+                markAllRead() {
+                    this.items.forEach(n => n.read = true);
+                }
+             }">
+
+            <button type="button" @click="open = !open"
+                    class="relative w-10 h-10 rounded-xl bg-white border border-curema-border flex items-center justify-center">
+                🔔
+                <span x-show="unread > 0" x-cloak
+                      class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-curema-coral text-curema-ink text-[10px] font-bold flex items-center justify-center"
+                      x-text="unread"></span>
+            </button>
+
+            <div x-show="open" x-cloak @click.outside="open = false" x-transition
+                 class="absolute right-0 mt-2 w-80 bg-curema-card rounded-2xl border border-curema-border shadow-xl z-40 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-curema-border">
+                    <h3 class="font-semibold text-sm">Notifications</h3>
+                    <button type="button" @click="markAllRead"
+                            class="text-xs text-curema-purple font-medium hover:underline">
+                        Mark all as read
+                    </button>
+                </div>
+
+                <ul class="max-h-80 overflow-y-auto divide-y divide-curema-border">
+                    <template x-if="items.length === 0">
+                        <li class="px-4 py-6 text-center text-xs text-curema-sub">No notifications yet.</li>
+                    </template>
+                    <template x-for="n in items" :key="n.id">
+                        <li @click="markRead(n.id)"
+                            class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-curema-bg transition"
+                            :class="!n.read && 'bg-curema-bg/60'">
+                            <div class="w-8 h-8 rounded-full bg-curema-purplesoft flex items-center justify-center text-sm shrink-0"
+                                 x-text="n.icon"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium leading-tight" x-text="n.title"></p>
+                                <p class="text-xs text-curema-sub mt-0.5" x-text="n.note"></p>
+                                <p class="text-[11px] text-curema-sub mt-1" x-text="n.time"></p>
+                            </div>
+                            <span x-show="!n.read" class="w-2 h-2 rounded-full bg-curema-purple shrink-0 mt-1"></span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
         </div>
 
         <div class="relative" x-data="{ open: false, filename: '', format: 'excel' }">
             <button type="button" @click="open = !open"
-                    class="px-4 py-2.5 rounded-xl bg-white border border-curema-border text-sm font-medium flex items-center gap-2">
+                    class="px-4 py-2.5 rounded-xl bg-curema-purple text-white text-sm font-semibold flex items-center gap-2">
                 ⭳ Export
             </button>
 
@@ -70,73 +123,5 @@
                 </div>
             </div>
         </div>
-
-        <div class="relative"
-             x-data="{
-                open: false,
-                items: [],
-                unread: 0,
-                refresh() {
-                    this.items = Curema.notifications.getAll();
-                    this.unread = Curema.notifications.unreadCount();
-                },
-                markRead(id) {
-                    Curema.notifications.markRead(id);
-                    this.refresh();
-                },
-                markAllRead() {
-                    Curema.notifications.markAllRead();
-                    this.refresh();
-                }
-             }"
-             x-init="refresh()">
-
-            <button type="button" @click="open = !open; if (open) refresh()"
-                    class="relative w-10 h-10 rounded-xl bg-white border border-curema-border flex items-center justify-center">
-                🔔
-                <span x-show="unread > 0" x-cloak
-                      class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-curema-coral text-curema-ink text-[10px] font-bold flex items-center justify-center"
-                      x-text="unread"></span>
-            </button>
-
-            <div x-show="open" x-cloak @click.outside="open = false" x-transition
-                 class="absolute right-0 mt-2 w-80 bg-curema-card rounded-2xl border border-curema-border shadow-xl z-40 overflow-hidden">
-                <div class="flex items-center justify-between px-4 py-3 border-b border-curema-border">
-                    <h3 class="font-semibold text-sm">Notifications</h3>
-                    <button type="button" @click="markAllRead"
-                            class="text-xs text-curema-purple font-medium hover:underline">
-                        Mark all as read
-                    </button>
-                </div>
-
-                <ul class="max-h-80 overflow-y-auto divide-y divide-curema-border">
-                    <template x-for="n in items" :key="n.id">
-                        <li @click="markRead(n.id)"
-                            class="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-curema-bg transition"
-                            :class="!n.read && 'bg-curema-bg/60'">
-                            <div class="w-8 h-8 rounded-full bg-curema-purplesoft flex items-center justify-center text-sm shrink-0"
-                                 x-text="n.icon"></div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium leading-tight" x-text="n.title"></p>
-                                <p class="text-xs text-curema-sub mt-0.5" x-text="n.note"></p>
-                                <p class="text-[11px] text-curema-sub mt-1" x-text="n.time"></p>
-                            </div>
-                            <span x-show="!n.read" class="w-2 h-2 rounded-full bg-curema-purple shrink-0 mt-1"></span>
-                        </li>
-                    </template>
-                </ul>
-            </div>
-        </div>
-
-        <button type="button" @click="ui.addCustomerOpen = true"
-                class="px-4 py-2.5 rounded-xl bg-curema-purple text-white text-sm font-semibold flex items-center gap-2">
-            + Add Customer <span class="opacity-70">▾</span>
-        </button>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        Curema.search.bindGlobalTopbarInput(document.getElementById('global-search'));
-    });
-</script>

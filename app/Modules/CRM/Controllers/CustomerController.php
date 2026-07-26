@@ -16,7 +16,7 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         return view('customer-relationship-management.index', [
-            'tableCustomers' => $this->paginatedCustomersTable(),
+            'tableCustomers' => $this->paginatedCustomersTable($request->query('q')),
             'insights' => CustomerInsightService::segments(),
             'followUps' => CustomerActivityService::upcomingFollowUps(),
             'activities' => CustomerActivityService::recentActivities(),
@@ -180,12 +180,19 @@ class CustomerController extends Controller
      * flexible one, since paginate() and get() return incompatible types
      * and mixing them behind one signature gets confusing fast.
      */
-    protected function paginatedCustomersTable(int $perPage = 10)
+    protected function paginatedCustomersTable(?string $search = null, int $perPage = 10)
     {
         return Customer::withCount('orders')
             ->withSum('orders', 'grand_total')
             ->withMax('orders', 'created_at')
             ->with('insight')
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
             ->orderByDesc('orders_sum_grand_total')
             ->paginate($perPage)
             ->withQueryString()

@@ -33,7 +33,7 @@
             </div>
 
             <div class="flex items-center justify-between py-3 border-t border-curema-border">
-                <span class="flex items-center gap-3 text-sm font-medium">⏰ Study Reminders</span>
+                <span class="flex items-center gap-3 text-sm font-medium">⏰ Reminders</span>
                 <button type="button"
                         @click="settings.studyReminders = !settings.studyReminders; Curema.settings.set('studyReminders', settings.studyReminders)"
                         :class="settings.studyReminders ? 'bg-curema-purple' : 'bg-curema-border'"
